@@ -1,0 +1,27 @@
+name: CI - Web
+
+on:
+  push:
+    paths:
+      - 'apps/web-*/**'
+      - 'packages/**'
+  pull_request:
+    paths:
+      - 'apps/web-*/**'
+      - 'packages/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm lint
+      - run: pnpm build

@@ -1,0 +1,39 @@
+{
+  "name": "gym-pulse",
+  "private": true,
+  "version": "1.0.0",
+  "description": "GymPulse - Full-Stack Gym Management Platform",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "mobile:dev": "cd apps/mobile && flutter run",
+    "mobile:build": "cd apps/mobile && flutter build apk",
+    "web:admin:dev": "cd apps/web-admin && pnpm dev",
+    "web:system:dev": "cd apps/web-system && pnpm dev",
+    "web:shop:dev": "cd apps/web-shop && pnpm dev",
+    "api:dev": "cd services/api-gateway && pnpm dev",
+    "core:dev": "cd services/core-service && pnpm dev",
+    "ai:dev": "cd services/ai-service && uvicorn app.main:app --reload",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:migrate": "supabase db reset",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "setup": "bash scripts/setup.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "prettier": "^3.2.0",
+    "@types/node": "^20.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ]
+}

@@ -1,0 +1,20 @@
+name: CI - AI Service
+
+on:
+  push:
+    paths:
+      - 'services/ai-service/**'
+  pull_request:
+    paths:
+      - 'services/ai-service/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: cd services/ai-service && pip install -r requirements.txt
+      - run: cd services/ai-service && pytest
