@@ -13,6 +13,7 @@
     "mobile:dev": "cd apps/mobile && flutter run",
     "mobile:build": "cd apps/mobile && flutter build apk",
     "web:admin:dev": "cd apps/web-admin && pnpm dev",
+    "web:landing:dev": "cd apps/web-landing && pnpm dev",
     "web:system:dev": "cd apps/web-system && pnpm dev",
     "web:shop:dev": "cd apps/web-shop && pnpm dev",
     "api:dev": "cd services/api-gateway && pnpm dev",
