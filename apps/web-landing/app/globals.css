@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: dark;
+  --brand-orange: #ff9045;
+  --bg-deep: #0a0d11;
+  --bg-panel: #111315;
 }
 
 html {
@@ -13,11 +16,29 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: #020617;
+  background:
+    radial-gradient(circle at top, rgba(255, 144, 69, 0.10), transparent 25%),
+    var(--bg-deep);
   color: #f8fafc;
   font-family: Arial, Helvetica, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+a {
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+}
+
+h1,
+h2,
+button,
+a {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
