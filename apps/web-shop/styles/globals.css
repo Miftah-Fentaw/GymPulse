@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { @apply bg-surface text-gray-800 font-sans antialiased; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-200 rounded-full; }
+}
+
+@layer components {
+  /* Sidebar */
+  .nav-link {
+    @apply flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium
+           text-sidebar-muted transition-all duration-150 cursor-pointer select-none;
+  }
+  .nav-link:hover  { @apply bg-surface text-sidebar-text; }
+  .nav-link.active { @apply bg-brand-light text-brand font-semibold; }
+  .nav-group-label {
+    @apply text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 pt-4 pb-1;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-surface-card rounded-2xl shadow-card border border-surface-border p-5;
+  }
+  .card-stat {
+    @apply card flex items-start gap-4;
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold;
+  }
+  .badge-success { @apply bg-success-light text-success; }
+  .badge-warning { @apply bg-warning-light text-warning; }
+  .badge-danger  { @apply bg-danger-light  text-danger;  }
+  .badge-info    { @apply bg-info-light    text-info;    }
+  .badge-violet  { @apply bg-violet-light  text-violet;  }
+  .badge-neutral { @apply bg-gray-100      text-gray-500; }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl
+           text-sm font-medium transition-all duration-150 cursor-pointer border border-transparent;
+  }
+  .btn-primary { @apply bg-brand text-white hover:bg-brand-dark; }
+  .btn-outline { @apply bg-white text-gray-700 border-surface-border hover:bg-surface; }
+  .btn-ghost   { @apply bg-transparent text-gray-500 hover:bg-surface; }
+  .btn-danger  { @apply bg-danger text-white hover:bg-red-600; }
+
+  /* Form */
+  .input {
+    @apply w-full px-3 py-2 rounded-xl border border-surface-border bg-white text-sm
+           text-gray-800 placeholder-gray-400 outline-none transition
+           focus:border-brand focus:ring-2 focus:ring-brand/20;
+  }
+
+  /* Table */
+  .th { @apply text-left text-[11px] font-bold uppercase tracking-wider text-gray-400 px-4 py-3; }
+  .td { @apply px-4 py-3 text-sm text-gray-700 border-t border-surface-border; }
+}
