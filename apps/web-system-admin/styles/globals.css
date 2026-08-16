@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    @apply bg-surface text-slate-800 font-sans antialiased;
+  }
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+@layer components {
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
+           text-sidebar-muted transition-all duration-150 cursor-pointer select-none;
+  }
+  .sidebar-link:hover {
+    @apply bg-sidebar-hover text-sidebar-text;
+  }
+  .sidebar-link.active {
+    @apply bg-sidebar-active text-white;
+  }
+  .sidebar-group-title {
+    @apply text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted/60 px-4 py-2 mt-3;
+  }
+  .card {
+    @apply bg-surface-card rounded-xl shadow-card border border-surface-border p-6;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-success  { @apply bg-success-light text-success; }
+  .badge-warning  { @apply bg-warning-light text-warning; }
+  .badge-danger   { @apply bg-danger-light text-danger; }
+  .badge-info     { @apply bg-info-light text-brand; }
+  .badge-neutral  { @apply bg-slate-100 text-slate-600; }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+           text-sm font-medium transition-all duration-150 cursor-pointer border border-transparent;
+  }
+  .btn-primary  { @apply bg-brand text-white hover:bg-brand-dark; }
+  .btn-outline  { @apply bg-white text-slate-700 border-surface-border hover:bg-surface; }
+  .btn-danger   { @apply bg-danger text-white hover:bg-red-600; }
+  .btn-ghost    { @apply bg-transparent text-slate-600 hover:bg-surface; }
+  .input        {
+    @apply w-full px-3 py-2 rounded-lg border border-surface-border bg-white text-sm
+           text-slate-800 placeholder-slate-400 outline-none transition
+           focus:border-brand focus:ring-2 focus:ring-brand/20;
+  }
+  .table-th {
+    @apply text-left text-xs font-semibold uppercase tracking-wider text-slate-500
+           px-4 py-3 bg-surface border-b border-surface-border;
+  }
+  .table-td {
+    @apply px-4 py-3 text-sm text-slate-700 border-b border-surface-border last:border-b-0;
+  }
+  .stat-card {
+    @apply card flex items-start gap-4;
+  }
+}
