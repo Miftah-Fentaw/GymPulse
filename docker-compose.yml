@@ -1,114 +1,77 @@
 version: "3.9"
 
 services:
-  api-gateway:
+  # ─── Go Backend (single unified API) ─────────────────────────────────────────
+  backend:
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/backend/Dockerfile
     ports:
-      - "3001:3001"
+      - "8080:8080"
+    env_file: .env
     environment:
-      - NODE_ENV=development
-      - PORT=3001
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-      - CORE_SERVICE_URL=http://core-service:3002
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3003
-      - AI_SERVICE_URL=http://ai-service:8000
-    depends_on:
-      - core-service
-      - notification-service
-      - ai-service
+      - BACKEND_PORT=8080
     networks:
       - gym-pulse-network
+    restart: unless-stopped
 
-  core-service:
-    build:
-      context: ./services/core-service
-      dockerfile: Dockerfile
-    ports:
-      - "3002:3002"
-    environment:
-      - NODE_ENV=development
-      - PORT=3002
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - redis
-    networks:
-      - gym-pulse-network
-
+  # ─── Notification Service (SMTP + Firebase push) ──────────────────────────────
   notification-service:
     build:
       context: ./services/notification-service
       dockerfile: Dockerfile
     ports:
       - "3003:3003"
+    env_file: .env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=3003
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASS=${SMTP_PASS}
-      - FIREBASE_CREDENTIALS=${FIREBASE_CREDENTIALS}
     networks:
       - gym-pulse-network
+    restart: unless-stopped
 
+  # ─── AI Service (Python / FastAPI) ───────────────────────────────────────────
   ai-service:
     build:
       context: ./services/ai-service
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file: .env
     environment:
       - PYTHONUNBUFFERED=1
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - ./services/ai-service/models:/app/models
     networks:
       - gym-pulse-network
+    restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
+  # ─── Web Apps ─────────────────────────────────────────────────────────────────
+  web-system-admin:
+    build:
+      context: ./apps/web-system-admin
+      dockerfile: Dockerfile
     ports:
-      - "6379:6379"
+      - "3000:3000"
+    env_file: .env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8080
+    depends_on:
+      - backend
     networks:
       - gym-pulse-network
 
-  web-admin:
+  web-user-admin:
     build:
-      context: ./apps/web-admin
+      context: ./apps/web-user-admin
       dockerfile: Dockerfile
     ports:
-      - "3004:3000"
+      - "3001:3000"
+    env_file: .env
     environment:
-      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - API_GATEWAY_URL=http://api-gateway:3001
+      - NEXT_PUBLIC_API_URL=http://backend:8080
     depends_on:
-      - api-gateway
-    networks:
-      - gym-pulse-network
-
-  web-system:
-    build:
-      context: ./apps/web-system
-      dockerfile: Dockerfile
-    ports:
-      - "3005:3000"
-    environment:
-      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - API_GATEWAY_URL=http://api-gateway:3001
-    depends_on:
-      - api-gateway
+      - backend
     networks:
       - gym-pulse-network
 
@@ -117,15 +80,22 @@ services:
       context: ./apps/web-shop
       dockerfile: Dockerfile
     ports:
-      - "3006:3000"
+      - "3002:3000"
+    env_file: .env
     environment:
-      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - STRIPE_PUBLIC_KEY=${STRIPE_PUBLIC_KEY}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - API_GATEWAY_URL=http://api-gateway:3001
+      - NEXT_PUBLIC_API_URL=http://backend:8080
     depends_on:
-      - api-gateway
+      - backend
+    networks:
+      - gym-pulse-network
+
+  web-landing:
+    build:
+      context: ./apps/web-landing
+      dockerfile: Dockerfile
+    ports:
+      - "3004:3000"
+    env_file: .env
     networks:
       - gym-pulse-network
 
