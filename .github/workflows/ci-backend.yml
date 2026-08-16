@@ -3,23 +3,43 @@ name: CI - Backend
 on:
   push:
     paths:
-      - 'services/**'
+      - 'apps/backend/**'
+      - 'services/go-shared/**'
   pull_request:
     paths:
-      - 'services/**'
+      - 'apps/backend/**'
+      - 'services/go-shared/**'
 
 jobs:
-  test:
+  go-backend:
+    name: Go Backend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
+
+      - uses: actions/setup-go@v5
         with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - run: pnpm install
-      - run: cd services/core-service && pnpm test
-      - run: cd services/api-gateway && pnpm test
+          go-version: '1.22'
+          cache-dependency-path: |
+            apps/backend/go.sum
+            services/go-shared/go.sum
+
+      - name: Tidy shared library
+        working-directory: services/go-shared
+        run: go mod tidy
+
+      - name: Tidy backend
+        working-directory: apps/backend
+        run: go mod tidy
+
+      - name: Build
+        working-directory: apps/backend
+        run: go build ./...
+
+      - name: Vet
+        working-directory: apps/backend
+        run: go vet ./...
+
+      - name: Test
+        working-directory: apps/backend
+        run: go test ./...
