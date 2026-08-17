@@ -29,10 +29,14 @@ import (
 	"gympulse/backend/internal/config"
 	adminAuthH  "gympulse/backend/internal/handlers/admin/auth"
 	adminsH     "gympulse/backend/internal/handlers/admin/admins"
+	analyticsH  "gympulse/backend/internal/handlers/admin/analytics"
+	bookingsH   "gympulse/backend/internal/handlers/admin/bookings"
+	classesH    "gympulse/backend/internal/handlers/admin/classes"
 	contentH    "gympulse/backend/internal/handlers/admin/content"
 	exercisesH  "gympulse/backend/internal/handlers/admin/exercises"
 	shopH       "gympulse/backend/internal/handlers/admin/shop"
 	systemH     "gympulse/backend/internal/handlers/admin/system"
+	trainersH   "gympulse/backend/internal/handlers/admin/trainers"
 	usersH      "gympulse/backend/internal/handlers/admin/users"
 	authH       "gympulse/backend/internal/handlers/auth"
 	mobileContentH "gympulse/backend/internal/handlers/mobile/content"
@@ -56,6 +60,10 @@ func New(cfg *config.Config) http.Handler {
 	aContent := contentH.New(cfg)
 	aExercises := exercisesH.New(cfg)
 	aSystem  := systemH.New(cfg)
+	aClasses  := classesH.New(cfg)
+	aBookings := bookingsH.New(cfg)
+	aTrainers := trainersH.New(cfg)
+	aAnalytics := analyticsH.New(cfg)
 
 	r := chi.NewRouter()
 
@@ -211,6 +219,35 @@ func New(cfg *config.Config) http.Handler {
 				r.Get("/orders",                      aShop.ListOrders)
 				r.Get("/orders/{id}",                 aShop.GetOrder)
 				r.Patch("/orders/{id}/status",        aShop.UpdateOrderStatus)
+
+				// Suppliers
+				r.Get("/suppliers",                   aShop.ListSuppliers)
+				r.Post("/suppliers",                  aShop.CreateSupplier)
+				r.Get("/suppliers/{id}",              aShop.GetSupplier)
+				r.Patch("/suppliers/{id}",            aShop.UpdateSupplier)
+				r.Delete("/suppliers/{id}",           superOnly(cfg, aShop.DeleteSupplier))
+
+				// Coupons
+				r.Get("/coupons",                     aShop.ListCoupons)
+				r.Post("/coupons",                    aShop.CreateCoupon)
+				r.Get("/coupons/{id}",                aShop.GetCoupon)
+				r.Patch("/coupons/{id}",              aShop.UpdateCoupon)
+				r.Delete("/coupons/{id}",             superOnly(cfg, aShop.DeleteCoupon))
+
+				// Returns
+				r.Get("/returns",                     aShop.ListReturns)
+				r.Get("/returns/{id}",                aShop.GetReturn)
+				r.Patch("/returns/{id}/status",       aShop.UpdateReturnStatus)
+
+				// Reviews
+				r.Get("/reviews",                     aShop.ListReviews)
+				r.Delete("/reviews/{id}",             aShop.DeleteReview)
+				r.Patch("/reviews/{id}/flag",         aShop.FlagReview)
+
+				// Shipments
+				r.Get("/shipments",                   aShop.ListShipments)
+				r.Get("/shipments/{id}",              aShop.GetShipment)
+				r.Patch("/shipments/{id}",            aShop.UpdateShipment)
 			})
 
 			// ── Content & sport — sport_admin, super_admin ────────────────
@@ -284,6 +321,61 @@ func New(cfg *config.Config) http.Handler {
 				r.Get("/settings",               aSystem.GetSettings)
 				r.Patch("/settings/{key}",       aSystem.UpdateSettings)
 				r.Get("/storage/buckets",        aSystem.ListStorageBuckets)
+
+				// Locations
+				r.Get("/locations",              aSystem.ListLocations)
+				r.Post("/locations",             aSystem.CreateLocation)
+				r.Patch("/locations/{id}",       aSystem.UpdateLocation)
+				r.Delete("/locations/{id}",      aSystem.DeleteLocation)
+
+				// Disciplines
+				r.Get("/disciplines",            aSystem.ListDisciplines)
+				r.Post("/disciplines",           aSystem.CreateDiscipline)
+				r.Patch("/disciplines/{id}",     aSystem.UpdateDiscipline)
+				r.Delete("/disciplines/{id}",    aSystem.DeleteDiscipline)
+			})
+
+			// ── Classes — user_admin, super_admin ─────────────────────────
+			r.Route("/classes", func(r chi.Router) {
+				r.Use(middleware.RequireAdminRole(middleware.RoleUserAdmin, middleware.RoleSuperAdmin))
+				r.Get("/",                  aClasses.ListClasses)
+				r.Post("/",                 aClasses.CreateClass)
+				r.Get("/disciplines",       aClasses.ListDisciplines)
+				r.Get("/schedule",          aClasses.GetSchedule)
+				r.Get("/{id}",              aClasses.GetClass)
+				r.Patch("/{id}",            aClasses.UpdateClass)
+				r.Delete("/{id}",           aClasses.DeleteClass)
+				r.Post("/{id}/cancel",      aClasses.CancelClass)
+			})
+
+			// ── Bookings — user_admin, super_admin ────────────────────────
+			r.Route("/bookings", func(r chi.Router) {
+				r.Use(middleware.RequireAdminRole(middleware.RoleUserAdmin, middleware.RoleSuperAdmin))
+				r.Get("/",              aBookings.ListBookings)
+				r.Get("/stats",         aBookings.GetBookingStats)
+				r.Get("/{id}",          aBookings.GetBooking)
+				r.Patch("/{id}/status", aBookings.UpdateBookingStatus)
+			})
+
+			// ── Trainers — user_admin, super_admin ────────────────────────
+			r.Route("/trainers", func(r chi.Router) {
+				r.Use(middleware.RequireAdminRole(middleware.RoleUserAdmin, middleware.RoleSuperAdmin))
+				r.Get("/",               aTrainers.ListTrainers)
+				r.Post("/",              aTrainers.CreateTrainer)
+				r.Get("/{id}",           aTrainers.GetTrainer)
+				r.Patch("/{id}",         aTrainers.UpdateTrainer)
+				r.Delete("/{id}",        aTrainers.DeleteTrainer)
+				r.Post("/{id}/verify",   aTrainers.VerifyTrainer)
+				r.Post("/{id}/unverify", aTrainers.UnverifyTrainer)
+			})
+
+			// ── Analytics — user_admin, super_admin ───────────────────────
+			r.Route("/analytics", func(r chi.Router) {
+				r.Use(middleware.RequireAdminRole(middleware.RoleUserAdmin, middleware.RoleSuperAdmin))
+				r.Get("/overview",       aAnalytics.Overview)
+				r.Get("/member-growth",  aAnalytics.MemberGrowth)
+				r.Get("/class-activity", aAnalytics.ClassActivity)
+				r.Get("/revenue",        aAnalytics.Revenue)
 			})
 		})
 	})
