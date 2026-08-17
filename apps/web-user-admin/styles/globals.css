@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { @apply bg-sheet text-ink font-sans antialiased; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-sheet-border rounded-full; }
+}
+
+@layer components {
+  /* ── Sidebar nav link ── */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium
+           text-ink-muted transition-all duration-150 cursor-pointer select-none w-full;
+  }
+  .nav-item:hover  { @apply bg-sheet-hover text-ink; }
+  .nav-item.active { @apply bg-ink text-white; }
+
+  /* ── Cards ── */
+  .card { @apply bg-sheet-card rounded-2xl shadow-card p-5; }
+
+  /* Stat pill card – used in quick-stats row */
+  .stat-pill {
+    @apply bg-sheet-card rounded-2xl shadow-xs flex flex-col items-center
+           justify-center gap-1 py-5 px-3 text-center;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-flex items-center justify-center px-2.5 py-0.5
+           rounded-full text-xs font-semibold;
+  }
+  .badge-ok      { @apply bg-ok-light    text-ok; }
+  .badge-warn    { @apply bg-warn-light  text-warn; }
+  .badge-bad     { @apply bg-bad-light   text-bad; }
+  .badge-info    { @apply bg-info-light  text-info; }
+  .badge-violet  { @apply bg-violet-light text-violet; }
+  .badge-neutral { @apply bg-sheet text-ink-muted border border-sheet-border; }
+  .badge-ink     { @apply bg-ink text-white; }
+
+  /* ── Buttons ── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2
+           rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer;
+  }
+  .btn-ink     { @apply bg-ink text-white hover:bg-ink-soft; }
+  .btn-outline { @apply bg-white text-ink border border-sheet-border hover:bg-sheet; }
+  .btn-ghost   { @apply bg-transparent text-ink-muted hover:bg-sheet; }
+  .btn-bad     { @apply bg-bad text-white hover:bg-red-600; }
+
+  /* ── Input ── */
+  .input {
+    @apply w-full px-3 py-2 rounded-xl border border-sheet-border bg-white
+           text-sm text-ink placeholder-ink-ghost outline-none transition
+           focus:border-ink focus:ring-2 focus:ring-ink/10;
+  }
+
+  /* ── Table ── */
+  .th { @apply text-left text-xs font-semibold text-ink-muted px-4 py-3; }
+  .td { @apply px-4 py-3 text-sm text-ink border-t border-sheet-border; }
+}
