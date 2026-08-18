@@ -1,0 +1,10 @@
+-- =============================================================================
+-- GymPulse — Super Admin
+-- Do not insert into auth.users directly. Raw SQL users cannot sign in.
+--
+-- Create the first super_admin with:
+--   ./scripts/create-super-admin.sh admin@gympulse.app 'YourPasswordHere'
+--
+-- That script calls the Supabase Auth Admin API so the password hash,
+-- identity row, and app_metadata.admin_role are all set correctly.
+-- =============================================================================
