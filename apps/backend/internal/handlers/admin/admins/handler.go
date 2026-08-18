@@ -3,7 +3,6 @@ package admins
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"gympulse/backend/internal/config"
@@ -32,33 +31,83 @@ func New(cfg *config.Config) *Handler {
 // GET /admin/admins?role=shop_admin
 func (h *Handler) ListAdmins(w http.ResponseWriter, r *http.Request) {
 	roleFilter := r.URL.Query().Get("role")
-	page := queryOr(r, "page", "1")
-	per := queryOr(r, "per_page", "50")
-
-	result, err := h.sb.AuthRequest("GET",
-		fmt.Sprintf("/auth/v1/admin/users?page=%s&per_page=%s", page, per), nil, "")
+	admins, err := h.loadAdmins()
 	if err != nil {
 		response.InternalError(w, err.Error())
 		return
 	}
+	if roleFilter != "" {
+		filtered := make([]interface{}, 0)
+		for _, a := range admins {
+			if adminRoleOf(a) == roleFilter {
+				filtered = append(filtered, a)
+			}
+		}
+		admins = filtered
+	}
+	response.OK(w, map[string]interface{}{"admins": admins, "total": len(admins)})
+}
 
-	rm, _ := result.(map[string]interface{})
-	users, _ := rm["users"].([]interface{})
-	admins := make([]interface{}, 0, len(users))
-	for _, u := range users {
-		um, _ := u.(map[string]interface{})
-		meta, _ := um["app_metadata"].(map[string]interface{})
-		role, _ := meta["admin_role"].(string)
-		if role == "" {
-			continue
+func (h *Handler) loadAdmins() ([]interface{}, error) {
+	result, err := h.sb.AuthRequest("GET", "/auth/v1/admin/users?page=1&per_page=200", nil, "")
+	if err == nil {
+		rm, _ := result.(map[string]interface{})
+		users, _ := rm["users"].([]interface{})
+		admins := make([]interface{}, 0)
+		for _, u := range users {
+			if adminRoleOf(u) != "" {
+				admins = append(admins, normalizeAdmin(u))
+			}
 		}
-		if roleFilter != "" && role != roleFilter {
-			continue
-		}
-		admins = append(admins, u)
+		return admins, nil
 	}
 
-	response.OK(w, map[string]interface{}{"admins": admins, "total": len(admins)})
+	view, err := h.sb.DB("GET", "admin_users?select=*&order=created_at.desc", nil)
+	if err != nil {
+		return nil, err
+	}
+	rows, _ := view.([]interface{})
+	admins := make([]interface{}, 0, len(rows))
+	for _, row := range rows {
+		admins = append(admins, normalizeAdmin(row))
+	}
+	return admins, nil
+}
+
+func adminRoleOf(u interface{}) string {
+	um, _ := u.(map[string]interface{})
+	if role, _ := um["admin_role"].(string); role != "" {
+		return role
+	}
+	meta, _ := um["app_metadata"].(map[string]interface{})
+	role, _ := meta["admin_role"].(string)
+	return role
+}
+
+func normalizeAdmin(u interface{}) map[string]interface{} {
+	um, _ := u.(map[string]interface{})
+	if um == nil {
+		return map[string]interface{}{}
+	}
+	role := adminRoleOf(um)
+	fullName, _ := um["full_name"].(string)
+	if fullName == "" {
+		if meta, ok := um["user_metadata"].(map[string]interface{}); ok {
+			fullName, _ = meta["full_name"].(string)
+		}
+	}
+	banned := um["banned_until"] != nil && um["banned_until"] != ""
+	return map[string]interface{}{
+		"id":           um["id"],
+		"email":        um["email"],
+		"full_name":    fullName,
+		"admin_role":   role,
+		"created_at":   um["created_at"],
+		"banned_until": um["banned_until"],
+		"is_active":    !banned,
+		"app_metadata": map[string]interface{}{"admin_role": role, "is_admin": true},
+		"user_metadata": map[string]interface{}{"full_name": fullName},
+	}
 }
 
 // GET /admin/admins/{id}
