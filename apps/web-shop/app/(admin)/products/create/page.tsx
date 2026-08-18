@@ -1,45 +1,105 @@
-import { ArrowLeft, Upload } from 'lucide-react'
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft, Loader2, ServerCrash } from 'lucide-react';
+import { apiFetch } from '@/lib/apiClient';
+import { asArray } from '@/lib/shop';
 
 export default function CreateProductPage() {
+  const router = useRouter();
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loadingCats, setLoadingCats] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    price: '',
+    stock: '0',
+    category_id: '',
+    images: '',
+    is_active: true,
+  });
+
+  useEffect(() => {
+    (async () => {
+      setLoadingCats(true);
+      const { data, error } = await apiFetch('/admin/shop/categories');
+      if (error) setErrorMsg(error);
+      setCategories(asArray(data));
+      setLoadingCats(false);
+    })();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setErrorMsg(null);
+    const images = form.images.split(',').map((s) => s.trim()).filter(Boolean);
+    const { error } = await apiFetch('/admin/shop/products', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: form.name.trim(),
+        description: form.description.trim(),
+        price: Number(form.price),
+        stock: Number(form.stock) || 0,
+        category_id: form.category_id || undefined,
+        images,
+        is_active: form.is_active,
+      }),
+    });
+    setSaving(false);
+    if (error) setErrorMsg(error);
+    else router.push('/products');
+  };
+
   return (
     <div className="space-y-5 max-w-3xl">
       <div className="flex items-center gap-3">
-        <a href="/products" className="btn btn-ghost p-2">
+        <Link href="/products" className="btn btn-ghost p-2">
           <ArrowLeft size={18} />
-        </a>
+        </Link>
         <div>
           <h1 className="text-xl font-bold text-gray-800">Add Product</h1>
           <p className="text-sm text-gray-400 mt-0.5">Fill in the details to add a new product</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Main form */}
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+          <ServerCrash size={16} className="mt-0.5 shrink-0" />
+          <p>{errorMsg}</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="md:col-span-2 space-y-4">
           <div className="card space-y-4">
             <h2 className="font-semibold text-gray-700 text-sm">Product Information</h2>
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">Product Name</label>
-              <input className="input" placeholder="e.g. Whey Protein 2kg" />
+              <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">Description</label>
-              <textarea className="input resize-none h-24" placeholder="Product description..." />
+              <textarea className="input resize-none h-24" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">SKU</label>
-                <input className="input" placeholder="e.g. WP-001" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Category</label>
-                <select className="input">
-                  <option>Supplements</option>
-                  <option>Equipment</option>
-                  <option>Accessories</option>
-                  <option>Recovery</option>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Category</label>
+              {loadingCats ? (
+                <div className="flex items-center gap-2 text-xs text-gray-400 py-2">
+                  <Loader2 size={14} className="animate-spin" /> Loading categories…
+                </div>
+              ) : (
+                <select className="input" value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}>
+                  <option value="">Select a category</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
                 </select>
-              </div>
+              )}
             </div>
           </div>
 
@@ -48,66 +108,41 @@ export default function CreateProductPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Price ($)</label>
-                <input type="number" className="input" placeholder="0.00" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Compare-at Price ($)</label>
-                <input type="number" className="input" placeholder="0.00" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Cost ($)</label>
-                <input type="number" className="input" placeholder="0.00" />
+                <input type="number" step="0.01" min="0" className="input" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Quantity in Stock</label>
-                <input type="number" className="input" placeholder="0" />
+                <input type="number" min="0" className="input" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Side panel */}
         <div className="space-y-4">
-          {/* Image upload */}
           <div className="card">
-            <h2 className="font-semibold text-gray-700 text-sm mb-3">Product Images</h2>
-            <div className="border-2 border-dashed border-surface-border rounded-xl p-6 flex flex-col items-center gap-2 hover:border-brand transition-colors cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center">
-                <Upload size={18} className="text-gray-400" />
-              </div>
-              <p className="text-xs text-gray-500 text-center">
-                Drag & drop or <span className="text-brand font-semibold">browse</span>
-              </p>
-              <p className="text-[10px] text-gray-400">PNG, JPG up to 5 MB</p>
-            </div>
+            <h2 className="font-semibold text-gray-700 text-sm mb-3">Image URLs</h2>
+            <textarea
+              className="input resize-none h-24"
+              placeholder="Comma-separated image URLs"
+              value={form.images}
+              onChange={(e) => setForm({ ...form, images: e.target.value })}
+            />
           </div>
-
-          {/* Status */}
           <div className="card space-y-3">
             <h2 className="font-semibold text-gray-700 text-sm">Status</h2>
-            <select className="input">
-              <option>Active</option>
-              <option>Inactive</option>
+            <select className="input" value={form.is_active ? 'active' : 'inactive'} onChange={(e) => setForm({ ...form, is_active: e.target.value === 'active' })}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
             </select>
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-              <input type="checkbox" className="rounded" />
-              Mark as Featured
-            </label>
           </div>
-
-          {/* Tags */}
-          <div className="card">
-            <h2 className="font-semibold text-gray-700 text-sm mb-2">Tags</h2>
-            <input className="input" placeholder="e.g. protein, supplement…" />
-            <p className="text-[10px] text-gray-400 mt-1.5">Separate tags with commas</p>
-          </div>
-
           <div className="flex gap-2">
-            <button className="btn btn-outline flex-1">Discard</button>
-            <button className="btn btn-primary flex-1">Save Product</button>
+            <Link href="/products" className="btn btn-outline flex-1">Discard</Link>
+            <button type="submit" className="btn btn-primary flex-1" disabled={saving}>
+              {saving ? 'Saving…' : 'Save Product'}
+            </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
-  )
+  );
 }

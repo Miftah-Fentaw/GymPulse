@@ -76,13 +76,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loading) {
       const isAuthPage = pathname?.startsWith('/login');
-      const isAdminRoute = pathname?.startsWith('/admin');
       const token = getStoredToken();
 
-      if (!token && isAdminRoute) {
+      if (!token && !isAuthPage) {
         router.push('/login');
       } else if (token && user && isAuthPage) {
-        router.push('/admin/dashboard');
+        router.push('/dashboard');
       }
     }
   }, [user, loading, pathname, router]);
@@ -116,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setRole(adminRole);
     setLoading(false);
 
-    router.push('/admin/dashboard');
+    router.push('/dashboard');
     return { success: true };
   };
 
