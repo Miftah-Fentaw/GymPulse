@@ -76,6 +76,46 @@ func (h *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, result)
 }
 
+// POST /auth/admin-login
+func (h *Handler) AdminSignIn(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" || req.Password == "" {
+		response.BadRequest(w, "email and password are required")
+		return
+	}
+
+	result, err := h.sb.AuthRequest("POST", "/auth/v1/token?grant_type=password",
+		map[string]interface{}{"email": req.Email, "password": req.Password}, "")
+	if err != nil {
+		response.Unauthorized(w, "Invalid credentials")
+		return
+	}
+
+	// Verify administrative role and enrich response
+	if resMap, ok := result.(map[string]interface{}); ok {
+		if user, ok := resMap["user"].(map[string]interface{}); ok {
+			if appMeta, ok := user["app_metadata"].(map[string]interface{}); ok {
+				role, _ := appMeta["admin_role"].(string)
+				isAdmin, _ := appMeta["is_admin"].(bool)
+				if !isAdmin && role == "" {
+					response.Forbidden(w, "Access denied: User account is not an admin")
+					return
+				}
+				// Promote admin_role to top-level for easy frontend access
+				resMap["admin_role"] = role
+			} else {
+				response.Forbidden(w, "Access denied: Admin role not assigned")
+				return
+			}
+		}
+	}
+
+	response.OK(w, result)
+}
+
 // GET /auth/google
 func (h *Handler) SignInWithGoogle(w http.ResponseWriter, r *http.Request) {
 	redirect := r.URL.Query().Get("redirect_to")
