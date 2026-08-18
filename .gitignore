@@ -62,3 +62,9 @@ pnpm-debug.log*
 # Testing
 coverage/
 .nyc_output/
+
+
+
+
+#creds
+creds.txt
