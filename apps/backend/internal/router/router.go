@@ -100,7 +100,7 @@ func New(cfg *config.Config) http.Handler {
 		r.Post("/reset-password", auth.ResetPassword)
 		// Protected
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.Authenticate(cfg.JWTSecret))
+			r.Use(middleware.Authenticate(cfg.JWTSecret, cfg.SupabaseURL))
 			r.Post("/signout",        auth.SignOut)
 			r.Put("/update-password", auth.UpdatePassword)
 			r.Get("/me",              auth.Me)
@@ -109,7 +109,7 @@ func New(cfg *config.Config) http.Handler {
 
 	// ── User profile (authenticated) ──────────────────────────────────────
 	r.Route("/profile", func(r chi.Router) {
-		r.Use(middleware.Authenticate(cfg.JWTSecret))
+		r.Use(middleware.Authenticate(cfg.JWTSecret, cfg.SupabaseURL))
 		r.Get("/",           profile.GetProfile)
 		r.Patch("/",         profile.UpdateProfile)
 		r.Post("/avatar",    profile.UploadAvatar)
@@ -147,7 +147,7 @@ func New(cfg *config.Config) http.Handler {
 
 		// Authenticated user orders
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.Authenticate(cfg.JWTSecret))
+			r.Use(middleware.Authenticate(cfg.JWTSecret, cfg.SupabaseURL))
 			r.Get("/orders",           mobShop.ListMyOrders)
 			r.Get("/orders/{id}",      mobShop.GetMyOrder)
 			r.Post("/orders",          mobShop.PlaceOrder)
@@ -160,22 +160,22 @@ func New(cfg *config.Config) http.Handler {
 	// ═══════════════════════════════════════════════════════════════════════
 	r.Route("/admin", func(r chi.Router) {
 
-		// ── Admin auth (mostly public) ────────────────────────────────────
+		// ── Admin auth (public + authenticated me) ────────────────────────
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/signin",         aAuth.SignIn)
 			r.Post("/refresh",        aAuth.RefreshToken)
 			r.Post("/reset-password", aAuth.ResetPassword)
 			r.Group(func(r chi.Router) {
-				r.Use(middleware.Authenticate(cfg.JWTSecret))
+				r.Use(middleware.Authenticate(cfg.JWTSecret, cfg.SupabaseURL))
 				r.Post("/signout",        aAuth.SignOut)
-				r.Put("/update-password", aAuth.UpdatePassword)
 				r.Get("/me",              aAuth.Me)
+				r.Put("/update-password", aAuth.UpdatePassword)
 			})
 		})
 
 		// All admin routes below require a valid JWT.
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.Authenticate(cfg.JWTSecret))
+			r.Use(middleware.Authenticate(cfg.JWTSecret, cfg.SupabaseURL))
 
 			// ── User management — user_admin, super_admin ─────────────────
 			r.Route("/users", func(r chi.Router) {
@@ -188,14 +188,21 @@ func New(cfg *config.Config) http.Handler {
 				r.Delete("/{id}",     superOnly(cfg, aUsers.DeleteUser))
 			})
 
+			// ── My Disciplines (all authenticated admin roles) ─────────────
+			r.Get("/my-disciplines", aSystem.GetMyDisciplines)
+			r.Get("/disciplines",    aSystem.ListDisciplines)
+
 			// ── Admin management — super_admin only ───────────────────────
 			r.Route("/admins", func(r chi.Router) {
 				r.Use(middleware.RequireAdminRole(middleware.RoleSuperAdmin))
-				r.Get("/",        aAdmins.ListAdmins)
-				r.Post("/",       aAdmins.CreateAdmin)
-				r.Get("/{id}",    aAdmins.GetAdmin)
-				r.Patch("/{id}",  aAdmins.UpdateAdmin)
-				r.Delete("/{id}", aAdmins.DeleteAdmin)
+				r.Get("/",                            aAdmins.ListAdmins)
+				r.Post("/",                           aAdmins.CreateAdmin)
+				r.Get("/{id}",                        aAdmins.GetAdmin)
+				r.Patch("/{id}",                      aAdmins.UpdateAdmin)
+				r.Delete("/{id}",                     aAdmins.DeleteAdmin)
+				r.Get("/{id}/disciplines",            aSystem.ListAdminDisciplines)
+				r.Post("/{id}/disciplines",           aSystem.AssignAdminDiscipline)
+				r.Delete("/{id}/disciplines/{disciplineId}", aSystem.UnassignAdminDiscipline)
 			})
 
 			// ── Shop — shop_admin, super_admin ────────────────────────────
@@ -213,7 +220,8 @@ func New(cfg *config.Config) http.Handler {
 
 				// Categories (create/delete = super_admin only)
 				r.Get("/categories",                  aShop.ListCategories)
-				r.Post("/categories",                 superOnly(cfg, aShop.CreateCategory))
+				r.Post("/categories",                 aShop.CreateCategory)
+				r.Delete("/categories/{id}",          aShop.DeleteCategory)
 
 				// Orders
 				r.Get("/orders",                      aShop.ListOrders)
@@ -254,48 +262,30 @@ func New(cfg *config.Config) http.Handler {
 			r.Route("/content", func(r chi.Router) {
 				r.Use(middleware.RequireAdminRole(middleware.RoleSportAdmin, middleware.RoleSuperAdmin))
 
-				// General content posts
-				r.Get("/",                  aContent.ListContent)
-				r.Post("/",                 aContent.CreateContent)
-				r.Get("/{id}",              aContent.GetContent)
-				r.Patch("/{id}",            aContent.UpdateContent)
-				r.Delete("/{id}",           aContent.DeleteContent)
-				r.Post("/{id}/publish",     aContent.PublishContent)
-				r.Post("/{id}/unpublish",   aContent.UnpublishContent)
+				r.Get("/",  aContent.ListContent)
+				r.Post("/", aContent.CreateContent)
 
-				// Media blocks on a post
-				r.Post("/{id}/media",              aContent.UploadMedia)
-				r.Post("/{id}/text-block",         aContent.AddTextBlock)
-				r.Delete("/{id}/media/{mediaId}",  aContent.DeleteMedia)
-				r.Patch("/{id}/media/reorder",     aContent.ReorderMedia)
-
-				// Content categories
-				r.Get("/categories",               aContent.ListContentCategories)
-				r.Post("/categories",              superOnly(cfg, aContent.CreateContentCategory))
-
-				// Standalone file upload (thumbnails, covers)
-				r.Post("/media/upload/{type}",     aContent.UploadFile)
-
-				// Workouts
-				r.Get("/workouts",                 aContent.ListWorkouts)
-				r.Post("/workouts",                aContent.CreateWorkout)
-				r.Get("/workouts/{id}",            aContent.GetWorkout)
-				r.Patch("/workouts/{id}",          aContent.UpdateWorkout)
-				r.Delete("/workouts/{id}",         aContent.DeleteWorkout)
-				r.Post("/workouts/{id}/publish",   aContent.PublishWorkout)
-				r.Post("/workouts/{id}/unpublish", aContent.UnpublishWorkout)
-
-				// Workout exercises
-				r.Get("/workouts/{workoutId}/exercises",          aExercises.ListExercises)
-				r.Post("/workouts/{workoutId}/exercises",         aExercises.CreateExercise)
-				r.Get("/workouts/{workoutId}/exercises/{id}",     aExercises.GetExercise)
-				r.Patch("/workouts/{workoutId}/exercises/{id}",   aExercises.UpdateExercise)
-				r.Delete("/workouts/{workoutId}/exercises/{id}",  aExercises.DeleteExercise)
+				// Static paths before /{id} so they are not captured as IDs.
+				r.Get("/categories",                 aContent.ListContentCategories)
+				r.Post("/categories",                aContent.CreateContentCategory)
+				r.Delete("/categories/{id}",         aContent.DeleteContentCategory)
+				r.Post("/media/upload/{type}",       aContent.UploadFile)
+				r.Get("/workouts",                   aContent.ListWorkouts)
+				r.Post("/workouts",                  aContent.CreateWorkout)
+				r.Get("/workouts/{id}",              aContent.GetWorkout)
+				r.Patch("/workouts/{id}",            aContent.UpdateWorkout)
+				r.Delete("/workouts/{id}",           aContent.DeleteWorkout)
+				r.Post("/workouts/{id}/publish",     aContent.PublishWorkout)
+				r.Post("/workouts/{id}/unpublish",   aContent.UnpublishWorkout)
+				r.Get("/workouts/{workoutId}/exercises",           aExercises.ListExercises)
+				r.Post("/workouts/{workoutId}/exercises",          aExercises.CreateExercise)
+				r.Get("/workouts/{workoutId}/exercises/{id}",      aExercises.GetExercise)
+				r.Patch("/workouts/{workoutId}/exercises/{id}",    aExercises.UpdateExercise)
+				r.Delete("/workouts/{workoutId}/exercises/{id}",   aExercises.DeleteExercise)
 				r.Patch("/workouts/{workoutId}/exercises/reorder", aExercises.ReorderExercises)
-
-				// Workout categories
-				r.Get("/workout-categories",       aContent.ListWorkoutCategories)
-				r.Post("/workout-categories",      superOnly(cfg, aContent.CreateWorkoutCategory))
+				r.Get("/workout-categories",         aContent.ListWorkoutCategories)
+				r.Post("/workout-categories",        aContent.CreateWorkoutCategory)
+				r.Delete("/workout-categories/{id}", aContent.DeleteWorkoutCategory)
 
 				// Programs
 				r.Get("/programs",                 aContent.ListPrograms)
@@ -307,6 +297,16 @@ func New(cfg *config.Config) http.Handler {
 				r.Post("/programs/{id}/unpublish", aContent.UnpublishProgram)
 				r.Post("/programs/{id}/workouts",                 aContent.AddWorkoutToProgram)
 				r.Delete("/programs/{id}/workouts/{workoutId}",   aContent.RemoveWorkoutFromProgram)
+
+				r.Get("/{id}",                     aContent.GetContent)
+				r.Patch("/{id}",                   aContent.UpdateContent)
+				r.Delete("/{id}",                  aContent.DeleteContent)
+				r.Post("/{id}/publish",            aContent.PublishContent)
+				r.Post("/{id}/unpublish",          aContent.UnpublishContent)
+				r.Post("/{id}/media",              aContent.UploadMedia)
+				r.Post("/{id}/text-block",         aContent.AddTextBlock)
+				r.Delete("/{id}/media/{mediaId}",  aContent.DeleteMedia)
+				r.Patch("/{id}/media/reorder",     aContent.ReorderMedia)
 			})
 
 			// ── System — super_admin only ─────────────────────────────────

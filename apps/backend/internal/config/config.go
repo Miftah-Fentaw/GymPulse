@@ -21,8 +21,11 @@ type Config struct {
 
 // Load reads config from environment, falling back to a .env file.
 func Load() *Config {
+	// Try local .env first, then monorepo root ../../.env
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, reading from environment")
+		if err2 := godotenv.Load("../../.env"); err2 != nil {
+			log.Println("No .env file found, reading from environment")
+		}
 	}
 	return &Config{
 		Port:               getEnv("BACKEND_PORT", "8080"),
