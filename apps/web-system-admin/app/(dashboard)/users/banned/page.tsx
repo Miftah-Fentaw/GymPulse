@@ -1,78 +1,98 @@
-import { Search, ShieldOff, Eye } from 'lucide-react'
+'use client';
 
-const bannedUsers = [
-  { id: '1', name: 'Mike Torres',   email: 'mike@mail.com',  tier: 'Premium', banned: 'Dec 20, 2024', reason: 'Abusive behaviour',        orders: 8  },
-  { id: '2', name: 'Rex Oduya',     email: 'rex@mail.com',   tier: 'Basic',   banned: 'Jan 5, 2025',  reason: 'Fraudulent order',          orders: 2  },
-  { id: '3', name: 'Tasha Belova',  email: 'tasha@mail.com', tier: 'Basic',   banned: 'Feb 14, 2025', reason: 'Repeated chargebacks',      orders: 1  },
-  { id: '4', name: 'Karim Najjar',  email: 'karim@mail.com', tier: 'Premium', banned: 'Mar 3, 2025',  reason: 'Harassment of other users', orders: 5  },
-]
+import { useEffect, useState } from 'react';
+import { Loader2, ServerCrash } from 'lucide-react';
+import { apiFetch } from '../../../../lib/apiClient';
+
+type AppUser = {
+  id: string;
+  email?: string;
+  full_name?: string;
+  banned_until?: string | null;
+};
 
 export default function BannedUsersPage() {
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    const { data, error } = await apiFetch('/admin/users?status=banned');
+    if (error) {
+      setErrorMsg(error);
+      setUsers([]);
+    } else {
+      setUsers(Array.isArray(data?.users) ? data.users : []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const unban = async (id: string) => {
+    const { error } = await apiFetch(`/admin/users/${id}/unban`, { method: 'POST' });
+    if (error) alert(error);
+    else load();
+  };
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center">
-          <ShieldOff size={20} className="text-danger" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">Banned Users</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{bannedUsers.length} users currently restricted</p>
-        </div>
+      <div>
+        <h1 className="text-xl font-bold text-slate-800">Banned Users</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Users currently banned via the backend</p>
       </div>
-
-      <div className="card p-0 overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-border">
-          <div className="relative flex-1 max-w-xs">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="input pl-8 h-9 text-sm" placeholder="Search banned users…" />
-          </div>
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+          <ServerCrash size={16} className="mt-0.5 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
-        <div className="overflow-x-auto">
+      )}
+      <div className="card p-0 overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-slate-400 gap-2 text-sm">
+            <Loader2 size={16} className="animate-spin" /> Loading…
+          </div>
+        ) : (
           <table className="w-full">
             <thead>
               <tr>
                 <th className="table-th">User</th>
-                <th className="table-th">Tier</th>
-                <th className="table-th">Banned On</th>
-                <th className="table-th">Reason</th>
-                <th className="table-th">Orders</th>
+                <th className="table-th">Banned until</th>
                 <th className="table-th text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {bannedUsers.map(u => (
-                <tr key={u.id} className="hover:bg-surface/40 transition-colors">
+              {users.map((u) => (
+                <tr key={u.id}>
                   <td className="table-td">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-danger/10 flex items-center justify-center shrink-0">
-                        <span className="text-xs font-bold text-danger">
-                          {u.name.split(' ').map(n => n[0]).join('')}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-800">{u.name}</p>
-                        <p className="text-xs text-slate-400">{u.email}</p>
-                      </div>
-                    </div>
+                    <p className="font-medium text-slate-800">{u.full_name || 'Member'}</p>
+                    <p className="text-xs text-slate-400">{u.email}</p>
                   </td>
-                  <td className="table-td">
-                    <span className={`badge ${u.tier === 'Premium' ? 'badge-info' : 'badge-neutral'}`}>{u.tier}</span>
+                  <td className="table-td text-slate-400">
+                    {u.banned_until ? new Date(u.banned_until).toLocaleString() : 'Indefinite'}
                   </td>
-                  <td className="table-td text-slate-500">{u.banned}</td>
-                  <td className="table-td text-slate-500">{u.reason}</td>
-                  <td className="table-td">{u.orders}</td>
                   <td className="table-td text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button className="btn btn-ghost p-1.5"><Eye size={14} /></button>
-                      <button className="btn btn-outline h-8 text-xs text-success border-success hover:bg-success/10">Unban</button>
-                    </div>
+                    <button className="btn btn-outline text-xs" onClick={() => unban(u.id)}>
+                      Unban
+                    </button>
                   </td>
                 </tr>
               ))}
+              {users.length === 0 && !errorMsg && (
+                <tr>
+                  <td colSpan={3} className="table-td text-center text-slate-400 py-10">
+                    No banned users.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
-        </div>
+        )}
       </div>
     </div>
-  )
+  );
 }

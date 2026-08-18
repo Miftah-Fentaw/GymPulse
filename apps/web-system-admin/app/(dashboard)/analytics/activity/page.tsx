@@ -1,95 +1,127 @@
-import { Activity, Users, Dumbbell, ClipboardList, TrendingDown } from 'lucide-react'
+'use client';
 
-const hourly = [
-  { hour: '6am', sessions: 42 }, { hour: '8am', sessions: 128 }, { hour: '10am', sessions: 96 },
-  { hour: '12pm', sessions: 74 }, { hour: '2pm', sessions: 55 }, { hour: '4pm', sessions: 110 },
-  { hour: '6pm', sessions: 189 }, { hour: '8pm', sessions: 134 }, { hour: '10pm', sessions: 47 },
-]
-const max = Math.max(...hourly.map(h => h.sessions))
-
-const topWorkouts = [
-  { title: 'Full Body HIIT', views: 4820, completions: 3210 },
-  { title: 'Morning Yoga Flow', views: 3940, completions: 2890 },
-  { title: 'Power Legs', views: 3210, completions: 1980 },
-  { title: 'Core Blast', views: 2840, completions: 1640 },
-  { title: 'Cardio Endurance', views: 2450, completions: 1320 },
-]
+import { useEffect, useState } from 'react';
+import { Users, ClipboardList, Layers, Activity, Loader2, ServerCrash } from 'lucide-react';
+import { apiFetch } from '../../../../lib/apiClient';
+import { asList, countValue } from '../../../../lib/utils';
 
 export default function UserActivityPage() {
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [overview, setOverview] = useState<any>({});
+  const [activity, setActivity] = useState<any[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setErrorMsg(null);
+      const [ov, act] = await Promise.all([
+        apiFetch('/admin/analytics/overview'),
+        apiFetch('/admin/analytics/class-activity'),
+      ]);
+      if (ov.error) setErrorMsg(ov.error);
+      else setOverview(ov.data || {});
+      if (!act.error && act.data) {
+        const rows = Array.isArray(act.data?.by_status)
+          ? act.data.by_status
+          : asList(act.data);
+        setActivity(rows);
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const max = Math.max(...activity.map((r) => countValue(r.count)), 1);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-slate-400 gap-2 text-sm">
+        <Loader2 size={16} className="animate-spin" /> Loading activity…
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-800">User Activity</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Daily session patterns and content engagement</p>
+        <p className="text-sm text-slate-500 mt-0.5">Members, bookings, and class activity from the backend</p>
       </div>
+
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+          <ServerCrash size={16} className="mt-0.5 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Daily Active Users',  value: '4,280', icon: <Users size={17} className="text-brand" />,   bg: 'bg-brand/10' },
-          { label: 'Workouts Started',    value: '1,840', icon: <Dumbbell size={17} className="text-success" />, bg: 'bg-success/10' },
-          { label: 'Bookings Today',      value: '312',   icon: <ClipboardList size={17} className="text-warning" />, bg: 'bg-warning/10' },
-          { label: 'Avg. Session Length', value: '8.4m',  icon: <Activity size={17} className="text-purple-500" />,  bg: 'bg-purple-100' },
-        ].map(s => (
+          { label: 'Total Members', value: countValue(overview.total_members), icon: <Users size={17} className="text-brand" />, bg: 'bg-brand/10' },
+          { label: 'Active Members', value: countValue(overview.active_members), icon: <Activity size={17} className="text-success" />, bg: 'bg-success/10' },
+          { label: 'Total Bookings', value: countValue(overview.total_bookings), icon: <ClipboardList size={17} className="text-warning" />, bg: 'bg-warning/10' },
+          { label: 'Total Classes', value: countValue(overview.total_classes), icon: <Layers size={17} className="text-purple-500" />, bg: 'bg-purple-100' },
+        ].map((s) => (
           <div key={s.label} className="card flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.bg}`}>{s.icon}</div>
             <div>
               <p className="text-xs text-slate-400">{s.label}</p>
-              <p className="text-xl font-bold text-slate-800">{s.value}</p>
+              <p className="text-xl font-bold text-slate-800">{s.value.toLocaleString()}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Hourly sessions bar chart */}
       <div className="card">
-        <p className="font-semibold text-slate-700 mb-5">Sessions by Hour (Today)</p>
-        <div className="flex items-end gap-2 h-36">
-          {hourly.map(h => (
-            <div key={h.hour} className="flex-1 flex flex-col items-center gap-1">
-              <span className="text-[10px] text-slate-500">{h.sessions}</span>
-              <div
-                className="w-full bg-brand/70 rounded-t-md transition-all"
-                style={{ height: `${(h.sessions / max) * 110}px` }}
-              />
-              <span className="text-[9px] text-slate-400">{h.hour}</span>
-            </div>
-          ))}
-        </div>
+        <p className="font-semibold text-slate-700 mb-5">Bookings by Status</p>
+        {activity.length === 0 ? (
+          <p className="text-sm text-slate-400 py-8 text-center">No class activity yet</p>
+        ) : (
+          <div className="flex items-end gap-2 h-36">
+            {activity.map((h, i) => {
+              const count = countValue(h.count);
+              const label = h.status || `Item ${i + 1}`;
+              return (
+                <div key={label} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-[10px] text-slate-500">{count}</span>
+                  <div
+                    className="w-full bg-brand/70 rounded-t-md transition-all"
+                    style={{ height: `${(count / max) * 110}px` }}
+                  />
+                  <span className="text-[9px] text-slate-400 capitalize">{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Top workouts */}
       <div className="card p-0 overflow-hidden">
         <div className="px-5 py-4 border-b border-surface-border">
-          <p className="font-semibold text-slate-700">Top Workout Engagement</p>
+          <p className="font-semibold text-slate-700">Status Breakdown</p>
         </div>
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="table-th">Workout</th>
-              <th className="table-th">Views</th>
-              <th className="table-th">Completions</th>
-              <th className="table-th">Completion Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {topWorkouts.map(w => (
-              <tr key={w.title} className="hover:bg-surface/40 transition-colors">
-                <td className="table-td font-medium text-slate-800">{w.title}</td>
-                <td className="table-td">{w.views.toLocaleString()}</td>
-                <td className="table-td">{w.completions.toLocaleString()}</td>
-                <td className="table-td">
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-1.5 bg-surface rounded-full overflow-hidden">
-                      <div className="h-full bg-brand rounded-full" style={{ width: `${Math.round((w.completions/w.views)*100)}%` }} />
-                    </div>
-                    <span className="text-xs font-medium text-slate-700">{Math.round((w.completions/w.views)*100)}%</span>
-                  </div>
-                </td>
+        {activity.length === 0 ? (
+          <p className="text-sm text-slate-400 py-10 text-center">No activity yet</p>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="table-th">Status</th>
+                <th className="table-th">Count</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {activity.map((w, i) => (
+                <tr key={w.status || i} className="hover:bg-surface/40 transition-colors">
+                  <td className="table-td font-medium text-slate-800 capitalize">{w.status || '—'}</td>
+                  <td className="table-td">{countValue(w.count).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
-  )
+  );
 }
