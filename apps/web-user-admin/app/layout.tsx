@@ -1,15 +1,20 @@
-import type { Metadata } from 'next'
-import '@/styles/globals.css'
+import type { Metadata } from 'next';
+import '@/styles/globals.css';
+import { AuthProvider } from '../context/AuthContext';
 
 export const metadata: Metadata = {
-  title: 'GymPulse — User Admin',
-  description: 'GymPulse user admin panel',
-}
+  title: 'GymPulse — User & Sport Admin',
+  description: 'GymPulse discipline-based user and sport admin portal',
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
-  )
+  );
 }
