@@ -4,7 +4,7 @@ const notifications = [
   { title: 'New member approval required',   body: 'Carlos Mendes signed up and is awaiting review.',    time: '2 min ago',   read: false, type: 'approval' },
   { title: 'Booking cancellation',           body: 'James Okafor cancelled his Power Lifting 101 slot.', time: '18 min ago',  read: false, type: 'booking'  },
   { title: 'Class is now full',              body: 'Power Lifting 101 on Apr 15 has reached capacity.',  time: '1h ago',      read: false, type: 'class'    },
-  { title: 'Trainer review pending',         body: 'Elena Popov's trainer profile needs review.',        time: '3h ago',      read: true,  type: 'trainer'  },
+  { title: 'Trainer review pending',         body: 'Elena Popov\'s trainer profile needs review.',        time: '3h ago',      read: true,  type: 'trainer'  },
   { title: 'Member reported a class',        body: 'A member flagged Core & Abs for inappropriate content.', time: '1d ago', read: true,  type: 'report'   },
 ]
 
