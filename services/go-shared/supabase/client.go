@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // Client wraps Supabase Auth Admin API and PostgREST calls using the
@@ -42,11 +43,20 @@ func (c *Client) AuthRequest(method, path string, payload interface{}, userToken
 
 	if userToken != "" {
 		req.Header.Set("Authorization", "Bearer "+userToken)
+	} else if isPublicAuthPath(path) {
+		// Password grant / signup / recover must use the anon key.
+		req.Header.Set("Authorization", "Bearer "+c.AnonKey)
 	} else {
 		req.Header.Set("Authorization", "Bearer "+c.ServiceKey)
 	}
 
 	return c.do(req)
+}
+
+func isPublicAuthPath(path string) bool {
+	return strings.HasPrefix(path, "/auth/v1/token") ||
+		strings.HasPrefix(path, "/auth/v1/signup") ||
+		strings.HasPrefix(path, "/auth/v1/recover")
 }
 
 // ─── PostgREST (database) ────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
@@ -29,14 +30,25 @@ const (
 
 // Claims mirrors the Supabase JWT payload.
 type Claims struct {
-	Sub   string                 `json:"sub"`
 	Email string                 `json:"email"`
 	Meta  map[string]interface{} `json:"app_metadata"`
 	jwt.RegisteredClaims
 }
 
-// Authenticate validates the Supabase JWT and injects user info into context.
-func Authenticate(jwtSecret string) func(http.Handler) http.Handler {
+var (
+	verifierOnce sync.Once
+	jwks         *jwksCache
+)
+
+// Authenticate validates a Supabase JWT (HS256 legacy secret or ES256 JWKS)
+// and injects user info into context.
+func Authenticate(jwtSecret, supabaseURL string) func(http.Handler) http.Handler {
+	verifierOnce.Do(func() {
+		if supabaseURL != "" {
+			jwks = newJWKSCache(supabaseURL)
+		}
+	})
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			hdr := r.Header.Get("Authorization")
@@ -50,24 +62,66 @@ func Authenticate(jwtSecret string) func(http.Handler) http.Handler {
 				return
 			}
 
-			claims := &Claims{}
-			token, err := jwt.ParseWithClaims(parts[1], claims, func(t *jwt.Token) (interface{}, error) {
-				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, jwt.ErrSignatureInvalid
-				}
-				return []byte(jwtSecret), nil
-			})
-			if err != nil || !token.Valid {
+			claims, err := parseSupabaseJWT(parts[1], jwtSecret)
+			if err != nil {
 				writeErr(w, http.StatusUnauthorized, "invalid or expired token")
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), UserIDKey, claims.Sub)
+			userID := claims.Subject
+			ctx := context.WithValue(r.Context(), UserIDKey, userID)
 			ctx = context.WithValue(ctx, UserEmailKey, claims.Email)
 			ctx = context.WithValue(ctx, UserMetaKey, claims.Meta)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func parseSupabaseJWT(tokenStr, jwtSecret string) (*Claims, error) {
+	header, err := parseJWTHeader(tokenStr)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := &Claims{}
+	parser := jwt.NewParser(jwt.WithValidMethods([]string{"HS256", "ES256", "ES384", "ES512"}))
+
+	keyFunc := func(t *jwt.Token) (interface{}, error) {
+		switch t.Method.(type) {
+		case *jwt.SigningMethodHMAC:
+			if jwtSecret == "" {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			return []byte(jwtSecret), nil
+		case *jwt.SigningMethodECDSA:
+			if jwks == nil {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			key, err := jwks.keyFor(header.Kid)
+			if err != nil {
+				return nil, err
+			}
+			pub, err := key.ecdsaPublicKey()
+			if err != nil {
+				return nil, err
+			}
+			return pub, nil
+		default:
+			return nil, jwt.ErrSignatureInvalid
+		}
+	}
+
+	token, err := parser.ParseWithClaims(tokenStr, claims, keyFunc)
+	if err != nil {
+		return nil, err
+	}
+	if !token.Valid {
+		return nil, jwt.ErrTokenInvalidClaims
+	}
+	if claims.Meta == nil {
+		claims.Meta = map[string]interface{}{}
+	}
+	return claims, nil
 }
 
 // RequireAdminRole checks app_metadata.admin_role against the allowed set.
