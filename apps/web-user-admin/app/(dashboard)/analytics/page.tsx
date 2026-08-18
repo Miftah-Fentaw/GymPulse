@@ -1,109 +1,146 @@
-import { Users, Dumbbell, ClipboardList, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+'use client';
 
-const monthly = [
-  { m: 'Jan', members: 3200, bookings: 1800 },
-  { m: 'Feb', members: 4100, bookings: 2400 },
-  { m: 'Mar', members: 3800, bookings: 2100 },
-  { m: 'Apr', members: 5200, bookings: 3100 },
-  { m: 'May', members: 4800, bookings: 2900 },
-  { m: 'Jun', members: 6400, bookings: 4000 },
-  { m: 'Jul', members: 5900, bookings: 3600 },
-  { m: 'Aug', members: 7200, bookings: 4800 },
-  { m: 'Sep', members: 6600, bookings: 4100 },
-  { m: 'Oct', members: 8000, bookings: 5200 },
-  { m: 'Nov', members: 7400, bookings: 4600 },
-  { m: 'Dec', members: 9100, bookings: 5900 },
-]
-const maxVal = Math.max(...monthly.map(d => d.members))
-
-const disciplineBreakdown = [
-  { label: 'HIIT',        pct: 32, count: 912  },
-  { label: 'Strength',    pct: 28, count: 796  },
-  { label: 'Cardio',      pct: 18, count: 512  },
-  { label: 'Flexibility', pct: 12, count: 341  },
-  { label: 'Core',        pct: 10, count: 284  },
-]
+import { useEffect, useState } from 'react';
+import { Users, Dumbbell, ClipboardList, ShieldCheck, Loader2, ServerCrash } from 'lucide-react';
+import { apiFetch, asArray, extractCount } from '../../lib/apiClient';
 
 export default function AnalyticsPage() {
+  const [overview, setOverview] = useState<any>(null);
+  const [growth, setGrowth] = useState<any[]>([]);
+  const [activity, setActivity] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setErrorMsg(null);
+      const [oRes, gRes, aRes] = await Promise.all([
+        apiFetch('/admin/analytics/overview'),
+        apiFetch('/admin/analytics/member-growth'),
+        apiFetch('/admin/analytics/class-activity'),
+      ]);
+      setErrorMsg(oRes.error || gRes.error || aRes.error);
+      setOverview(oRes.data || null);
+      setGrowth(asArray(gRes.data?.monthly ?? gRes.data));
+      if (Array.isArray(aRes.data?.by_status)) {
+        setActivity(aRes.data.by_status);
+      } else {
+        setActivity(asArray(aRes.data));
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const maxVal = Math.max(1, ...growth.map((d) => Number(d.new_members || d.members || 0)));
+
+  const kpis = [
+    { label: 'Total Members', value: extractCount(overview?.total_members), icon: <Users size={18} /> },
+    { label: 'Total Classes', value: extractCount(overview?.total_classes), icon: <Dumbbell size={18} /> },
+    { label: 'Total Bookings', value: extractCount(overview?.total_bookings), icon: <ClipboardList size={18} /> },
+    { label: 'Total Trainers', value: extractCount(overview?.total_trainers), icon: <ShieldCheck size={18} /> },
+  ];
+
+  const activityMax = Math.max(1, ...activity.map((d) => extractCount(d.count ?? d)));
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-bold text-ink">Analytics</h1>
-        <p className="text-sm text-ink-muted mt-0.5">Platform-wide user & class metrics</p>
+        <p className="text-sm text-ink-muted mt-0.5">Platform-wide user & class metrics from the backend</p>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Members',  value: '12,846', change: '+8.2%',  up: true,  icon: <Users size={18} /> },
-          { label: 'Total Classes',  value: '284',    change: '+12.5%', up: true,  icon: <Dumbbell size={18} /> },
-          { label: 'Total Bookings', value: '3,572',  change: '+18.1%', up: true,  icon: <ClipboardList size={18} /> },
-          { label: 'Churn Rate',     value: '2.4%',   change: '-0.8%',  up: true,  icon: <TrendingUp size={18} /> },
-        ].map(kpi => (
-          <div key={kpi.label} className="card flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-sheet flex items-center justify-center shrink-0">
-              {kpi.icon}
-            </div>
-            <div>
-              <p className="text-xs text-ink-muted">{kpi.label}</p>
-              <p className="text-lg font-bold text-ink">{kpi.value}</p>
-              <div className={`flex items-center gap-0.5 text-[11px] font-semibold ${kpi.up ? 'text-ok' : 'text-bad'}`}>
-                {kpi.up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />} {kpi.change}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Growth chart */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-5">
-          <p className="font-bold text-ink">Member & Booking Growth</p>
-          <div className="flex items-center gap-4 text-xs text-ink-muted">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-ink inline-block" /> Members</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-sheet-border inline-block" /> Bookings</span>
-          </div>
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+          <ServerCrash size={16} className="mt-0.5 shrink-0 text-red-500" />
+          <span>{errorMsg}</span>
         </div>
-        <div className="flex gap-3 h-44">
-          <div className="flex flex-col justify-between text-[10px] text-ink-ghost text-right pr-1.5 shrink-0">
-            {['9K','7K','5K','3K','1K','0'].map(l => <span key={l}>{l}</span>)}
-          </div>
-          <div className="flex-1 flex items-end gap-1.5">
-            {monthly.map((d, i) => (
-              <div key={d.m} className="flex-1 flex flex-col items-center gap-0.5">
-                <div className="w-full flex items-end gap-0.5">
-                  <div
-                    className="flex-1 rounded-t-md bg-ink transition-all"
-                    style={{ height: `${(d.members / maxVal) * 160}px`, opacity: i === monthly.length - 1 ? 1 : 0.3 + i * 0.06 }}
-                  />
-                  <div
-                    className="flex-1 rounded-t-md bg-sheet-border"
-                    style={{ height: `${(d.bookings / maxVal) * 160}px` }}
-                  />
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-ink-ghost gap-2">
+          <Loader2 size={20} className="animate-spin" />
+          <span className="text-xs font-semibold">Loading analytics…</span>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {kpis.map((kpi) => (
+              <div key={kpi.label} className="card flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-sheet flex items-center justify-center shrink-0">
+                  {kpi.icon}
                 </div>
-                <span className="text-[9px] text-ink-ghost">{d.m}</span>
+                <div>
+                  <p className="text-xs text-ink-muted">{kpi.label}</p>
+                  <p className="text-lg font-bold text-ink">{kpi.value}</p>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
 
-      {/* Discipline breakdown */}
-      <div className="card">
-        <p className="font-bold text-ink mb-4">Bookings by Discipline</p>
-        <div className="space-y-3">
-          {disciplineBreakdown.map(d => (
-            <div key={d.label} className="flex items-center gap-3">
-              <span className="text-sm text-ink-muted w-24 shrink-0">{d.label}</span>
-              <div className="flex-1 h-2 bg-sheet rounded-full overflow-hidden">
-                <div className="h-full bg-ink rounded-full" style={{ width: `${d.pct}%` }} />
+          <div className="card">
+            <div className="flex items-center justify-between mb-5">
+              <p className="font-bold text-ink">Member Growth</p>
+              <div className="flex items-center gap-4 text-xs text-ink-muted">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-ink inline-block" /> New members</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-sheet-border inline-block" /> Churned</span>
               </div>
-              <span className="text-xs font-semibold text-ink w-8 text-right">{d.pct}%</span>
-              <span className="text-xs text-ink-ghost w-12 text-right">{d.count.toLocaleString()}</span>
             </div>
-          ))}
-        </div>
-      </div>
+            {growth.length === 0 ? (
+              <p className="text-xs text-ink-ghost py-8 text-center">No growth data returned.</p>
+            ) : (
+              <div className="flex gap-3 h-44">
+                <div className="flex-1 flex items-end gap-1.5">
+                  {growth.map((d, i) => {
+                    const neu = Number(d.new_members || d.members || 0);
+                    const churn = Number(d.churned || 0);
+                    return (
+                      <div key={d.month || i} className="flex-1 flex flex-col items-center gap-0.5">
+                        <div className="w-full flex items-end gap-0.5">
+                          <div
+                            className="flex-1 rounded-t-md bg-ink"
+                            style={{ height: `${(neu / maxVal) * 160}px` }}
+                          />
+                          <div
+                            className="flex-1 rounded-t-md bg-sheet-border"
+                            style={{ height: `${(churn / maxVal) * 160}px` }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-ink-ghost">{d.month || i + 1}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <p className="font-bold text-ink mb-4">Bookings by Status</p>
+            {activity.length === 0 ? (
+              <p className="text-xs text-ink-ghost py-6 text-center">No class activity data returned.</p>
+            ) : (
+              <div className="space-y-3">
+                {activity.map((d, i) => {
+                  const count = extractCount(d.count ?? d);
+                  const label = d.status || d.label || `Status ${i + 1}`;
+                  const pct = Math.round((count / activityMax) * 100);
+                  return (
+                    <div key={label} className="flex items-center gap-3">
+                      <span className="text-sm text-ink-muted w-24 shrink-0 capitalize">{String(label).replace('_', ' ')}</span>
+                      <div className="flex-1 h-2 bg-sheet rounded-full overflow-hidden">
+                        <div className="h-full bg-ink rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs text-ink-ghost w-12 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
-  )
+  );
 }

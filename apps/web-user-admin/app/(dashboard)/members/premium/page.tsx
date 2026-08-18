@@ -1,13 +1,57 @@
-import { Search, Crown } from 'lucide-react'
+'use client';
 
-const premiumMembers = [
-  { id: '1', name: 'Ahmed Hassan', email: 'ahmed@mail.com', location: 'Dubai',     joined: 'Jan 12, 2025', renewsOn: 'Feb 12, 2026', bookings: 22 },
-  { id: '2', name: 'Priya Sharma', email: 'priya@mail.com', location: 'Abu Dhabi', joined: 'Apr 7, 2025',  renewsOn: 'May 7, 2026',  bookings: 14 },
-  { id: '3', name: 'James Okafor', email: 'james@mail.com', location: 'Kuwait',    joined: 'Nov 5, 2024',  renewsOn: 'Nov 5, 2025',  bookings: 31 },
-  { id: '4', name: 'Aisha Nkosi',  email: 'aisha@mail.com', location: 'Nairobi',   joined: 'Mar 1, 2025',  renewsOn: 'Mar 1, 2026',  bookings: 9  },
-]
+import { useEffect, useMemo, useState } from 'react';
+import { Search, Crown, Loader2, ServerCrash } from 'lucide-react';
+import { apiFetch, asArray, formatDay, initialsFrom } from '../../../lib/apiClient';
+
+type AppUser = {
+  id: string;
+  email?: string;
+  full_name?: string;
+  created_at?: string;
+  last_sign_in_at?: string;
+  user_metadata?: { tier?: string };
+  tier?: string;
+};
+
+function isPremium(u: AppUser) {
+  const tier = (u.user_metadata?.tier || u.tier || '').toLowerCase();
+  return tier === 'premium';
+}
 
 export default function PremiumMembersPage() {
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setErrorMsg(null);
+      const { data, error } = await apiFetch('/admin/users');
+      if (error) {
+        setErrorMsg(error);
+        setUsers([]);
+      } else {
+        setUsers(asArray<AppUser>(data?.users ?? data));
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const premium = useMemo(() => users.filter(isPremium), [users]);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return premium.filter(
+      (u) =>
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.full_name || '').toLowerCase().includes(q)
+    );
+  }, [premium, search]);
+
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
@@ -16,67 +60,76 @@ export default function PremiumMembersPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-ink">Premium Members</h1>
-          <p className="text-sm text-ink-muted mt-0.5">3,482 members on the Premium plan</p>
+          <p className="text-sm text-ink-muted mt-0.5">
+            Premium is not assigned by a dedicated API. Members appear here only if metadata tier is premium.
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {[
-          { label: 'Total Premium', value: '3,482' },
-          { label: 'Monthly',       value: '2,910' },
-          { label: 'Annual',        value: '572'   },
-        ].map(s => (
-          <div key={s.label} className="card py-4">
-            <p className="text-2xl font-bold text-ink">{s.value}</p>
-            <p className="text-xs text-ink-muted mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+          <ServerCrash size={16} className="mt-0.5 shrink-0 text-red-500" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       <div className="card p-0 overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4">
           <div className="relative flex-1 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-ghost" />
-            <input className="input pl-8 h-9 text-sm" placeholder="Search premium members…" />
+            <input
+              className="input pl-8 h-9 text-sm"
+              placeholder="Search premium members…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-t border-sheet-border">
-                <th className="th">Member</th>
-                <th className="th">Location</th>
-                <th className="th">Joined</th>
-                <th className="th">Renews On</th>
-                <th className="th">Bookings</th>
-              </tr>
-            </thead>
-            <tbody>
-              {premiumMembers.map(m => (
-                <tr key={m.id} className="hover:bg-sheet/50 transition-colors">
-                  <td className="td">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-warn-light flex items-center justify-center shrink-0">
-                        <span className="text-xs font-bold text-warn">
-                          {m.name.split(' ').map(n => n[0]).join('')}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-ink text-sm">{m.name}</p>
-                        <p className="text-xs text-ink-ghost">{m.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="td text-ink-muted">{m.location}</td>
-                  <td className="td text-ink-ghost text-xs">{m.joined}</td>
-                  <td className="td text-ink-ghost text-xs">{m.renewsOn}</td>
-                  <td className="td font-semibold text-ink">{m.bookings}</td>
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-ink-ghost gap-2">
+            <Loader2 size={20} className="animate-spin" />
+            <span className="text-xs font-semibold">Loading members…</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-t border-sheet-border">
+                  <th className="th">Member</th>
+                  <th className="th">Joined</th>
+                  <th className="th">Last sign-in</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((m) => (
+                  <tr key={m.id} className="hover:bg-sheet/50 transition-colors">
+                    <td className="td">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-warn-light flex items-center justify-center shrink-0">
+                          <span className="text-xs font-bold text-warn">
+                            {initialsFrom(m.full_name, m.email)}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-ink text-sm">{m.full_name || 'Unnamed member'}</p>
+                          <p className="text-xs text-ink-ghost">{m.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="td text-ink-ghost text-xs">{formatDay(m.created_at)}</td>
+                    <td className="td text-ink-ghost text-xs">{formatDay(m.last_sign_in_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && !errorMsg && (
+              <p className="text-xs text-ink-ghost py-10 text-center">
+                Premium is not assigned yet. No members have user_metadata.tier = premium.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }

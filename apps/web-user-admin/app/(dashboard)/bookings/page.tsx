@@ -1,29 +1,95 @@
-import { Search, Eye, MoreHorizontal } from 'lucide-react'
+'use client';
 
-const bookings = [
-  { id: 'BK-1001', member: 'Ahmed Hassan',  class: 'Full Body HIIT',    trainer: 'Felix Wagner',  status: 'confirmed',  date: 'Apr 15, 2025 07:00', payment: 'paid'   },
-  { id: 'BK-1002', member: 'Sara Ali',      class: 'Morning Yoga Flow', trainer: 'Rania Khalil',  status: 'pending',    date: 'Apr 15, 2025 06:30', payment: 'pending'},
-  { id: 'BK-1003', member: 'Priya Sharma',  class: 'Cardio Blast',      trainer: 'Elena Popov',   status: 'checked_in', date: 'Apr 14, 2025 19:00', payment: 'paid'   },
-  { id: 'BK-1004', member: 'James Okafor',  class: 'Power Lifting 101', trainer: 'Omar Siddiqui', status: 'cancelled',  date: 'Apr 14, 2025 18:00', payment: 'refunded'},
-  { id: 'BK-1005', member: 'Layla Noor',    class: 'Core & Abs',        trainer: 'Felix Wagner',  status: 'no_show',    date: 'Apr 13, 2025 08:00', payment: 'paid'   },
-  { id: 'BK-1006', member: 'Carlos Mendes', class: 'Morning Yoga Flow', trainer: 'Rania Khalil',  status: 'confirmed',  date: 'Apr 16, 2025 06:30', payment: 'pending'},
-]
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { Search, Loader2, ServerCrash } from 'lucide-react';
+import { apiFetch, asArray, extractCount, formatDate } from '../../../lib/apiClient';
 
-const statusBadge: Record<string,string> = {
-  confirmed: 'badge-ok', pending: 'badge-warn',
-  checked_in: 'badge-info', cancelled: 'badge-bad', no_show: 'badge-neutral',
+const statusBadge: Record<string, string> = {
+  confirmed: 'badge-ok',
+  pending: 'badge-warn',
+  checked_in: 'badge-info',
+  cancelled: 'badge-bad',
+  no_show: 'badge-neutral',
+  refunded: 'badge-info',
+};
+
+const STATUSES = ['pending', 'confirmed', 'checked_in', 'no_show', 'cancelled', 'refunded'] as const;
+
+function pretty(s: string) {
+  return (s || '').replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-const tabs = [
-  { label: 'All',        count: 3572 },
-  { label: 'Pending',    count: 128  },
-  { label: 'Confirmed',  count: 2900 },
-  { label: 'Checked In', count: 412  },
-  { label: 'Cancelled',  count: 115  },
-  { label: 'No Shows',   count: 17   },
-]
-
 export default function BookingsPage() {
+  const searchParams = useSearchParams();
+  const status = searchParams.get('status') || '';
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [stats, setStats] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [actionId, setActionId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    const q = status ? `?status=${encodeURIComponent(status)}&per_page=100` : '?per_page=100';
+    const [bRes, sRes] = await Promise.all([
+      apiFetch(`/admin/bookings${q}`),
+      apiFetch('/admin/bookings/stats'),
+    ]);
+    if (bRes.error) {
+      setErrorMsg(bRes.error);
+      setBookings([]);
+    } else {
+      setBookings(asArray(bRes.data));
+    }
+    if (!sRes.error && sRes.data && typeof sRes.data === 'object') {
+      const next: Record<string, number> = {};
+      for (const key of STATUSES) {
+        next[key] = extractCount(sRes.data[key]);
+      }
+      setStats(next);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+  }, [status]);
+
+  const handleStatus = async (id: string, next: string) => {
+    setActionId(id);
+    const { error } = await apiFetch(`/admin/bookings/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: next }),
+    });
+    if (error) alert(error);
+    else load();
+    setActionId(null);
+  };
+
+  const filtered = bookings.filter((b) => {
+    const q = search.toLowerCase();
+    const member = b.profiles?.full_name || b.profiles?.email || '';
+    const title = b.classes?.title || '';
+    return (
+      (b.id || '').toLowerCase().includes(q) ||
+      member.toLowerCase().includes(q) ||
+      title.toLowerCase().includes(q)
+    );
+  });
+
+  const tabs = [
+    { label: 'All', href: '/bookings', key: '' },
+    { label: 'Pending', href: '/bookings?status=pending', key: 'pending' },
+    { label: 'Confirmed', href: '/bookings?status=confirmed', key: 'confirmed' },
+    { label: 'Checked In', href: '/bookings?status=checked_in', key: 'checked_in' },
+    { label: 'Cancelled', href: '/bookings?status=cancelled', key: 'cancelled' },
+    { label: 'No Shows', href: '/bookings?status=no_show', key: 'no_show' },
+  ];
+
   return (
     <div className="space-y-5">
       <div>
@@ -31,88 +97,111 @@ export default function BookingsPage() {
         <p className="text-sm text-ink-muted mt-0.5">All class bookings across the platform</p>
       </div>
 
-      {/* Status tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {tabs.map((t, i) => (
-          <button
-            key={t.label}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${
-              i === 0
-                ? 'bg-ink text-white border-ink'
-                : 'bg-white text-ink-muted border-sheet-border hover:border-ink hover:text-ink'
-            }`}
-          >
-            {t.label}
-            <span className={`px-1.5 py-0.5 rounded-lg text-[10px] font-bold ${i === 0 ? 'bg-white/20 text-white' : 'bg-sheet text-ink-muted'}`}>
-              {t.count.toLocaleString()}
-            </span>
-          </button>
-        ))}
+        {tabs.map((t) => {
+          const active = (t.key || '') === (status || '');
+          const count = t.key ? stats[t.key] : Object.values(stats).reduce((a, b) => a + b, 0);
+          return (
+            <Link
+              key={t.label}
+              href={t.href}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-colors border ${
+                active
+                  ? 'bg-ink text-white border-ink'
+                  : 'bg-white text-ink-muted border-sheet-border hover:border-ink hover:text-ink'
+              }`}
+            >
+              {t.label}
+              {t.key && count !== undefined && (
+                <span className={`px-1.5 py-0.5 rounded-lg text-[10px] font-bold ${active ? 'bg-white/20 text-white' : 'bg-sheet text-ink-muted'}`}>
+                  {count}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </div>
+
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+          <ServerCrash size={16} className="mt-0.5 shrink-0 text-red-500" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       <div className="card p-0 overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4">
           <div className="relative flex-1 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-ghost" />
-            <input className="input pl-8 h-9 text-sm" placeholder="Search bookings…" />
+            <input
+              className="input pl-8 h-9 text-sm"
+              placeholder="Search bookings…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-          <input type="date" className="input h-9 w-auto text-sm py-0 ml-auto" />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-t border-sheet-border">
-                <th className="th"><input type="checkbox" className="rounded-md" /></th>
-                <th className="th">Booking ID</th>
-                <th className="th">Member</th>
-                <th className="th">Class</th>
-                <th className="th">Trainer</th>
-                <th className="th">Status</th>
-                <th className="th">Date & Time</th>
-                <th className="th">Payment</th>
-                <th className="th text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map(b => (
-                <tr key={b.id} className="hover:bg-sheet/50 transition-colors">
-                  <td className="td"><input type="checkbox" className="rounded-md" /></td>
-                  <td className="td font-mono text-xs font-semibold text-ink">{b.id}</td>
-                  <td className="td font-medium text-ink">{b.member}</td>
-                  <td className="td text-ink-muted text-sm">{b.class}</td>
-                  <td className="td text-ink-muted text-sm">{b.trainer}</td>
-                  <td className="td">
-                    <span className={`badge text-[10px] ${statusBadge[b.status]}`}>
-                      {b.status.replace('_',' ').replace(/\b\w/g,l=>l.toUpperCase())}
-                    </span>
-                  </td>
-                  <td className="td text-ink-ghost text-xs">{b.date}</td>
-                  <td className="td">
-                    <span className={`badge text-[10px] ${b.payment === 'paid' ? 'badge-ok' : b.payment === 'refunded' ? 'badge-info' : 'badge-warn'}`}>
-                      {b.payment.charAt(0).toUpperCase() + b.payment.slice(1)}
-                    </span>
-                  </td>
-                  <td className="td text-right">
-                    <button className="btn btn-outline h-7 text-xs gap-1">
-                      <Eye size={12} /> View
-                    </button>
-                  </td>
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-ink-ghost gap-2">
+            <Loader2 size={20} className="animate-spin" />
+            <span className="text-xs font-semibold">Loading bookings…</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-t border-sheet-border">
+                  <th className="th">Booking ID</th>
+                  <th className="th">Member</th>
+                  <th className="th">Class</th>
+                  <th className="th">Status</th>
+                  <th className="th">Date & Time</th>
+                  <th className="th text-right">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((b) => (
+                  <tr key={b.id} className="hover:bg-sheet/50 transition-colors">
+                    <td className="td font-mono text-xs font-semibold text-ink">{b.id}</td>
+                    <td className="td font-medium text-ink">
+                      {b.profiles?.full_name || b.profiles?.email || '—'}
+                    </td>
+                    <td className="td text-ink-muted text-sm">{b.classes?.title || '—'}</td>
+                    <td className="td">
+                      <span className={`badge text-[10px] ${statusBadge[b.status] || 'badge-neutral'}`}>
+                        {pretty(b.status)}
+                      </span>
+                    </td>
+                    <td className="td text-ink-ghost text-xs">
+                      {formatDate(b.classes?.start_time || b.created_at)}
+                    </td>
+                    <td className="td text-right">
+                      <select
+                        className="input h-8 w-auto text-xs py-0"
+                        value={b.status || ''}
+                        disabled={actionId === b.id}
+                        onChange={(e) => handleStatus(b.id, e.target.value)}
+                      >
+                        {STATUSES.map((s) => (
+                          <option key={s} value={s}>{pretty(s)}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && !errorMsg && (
+              <p className="text-xs text-ink-ghost py-10 text-center">No bookings found.</p>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between px-5 py-4 border-t border-sheet-border">
-          <p className="text-xs text-ink-muted">Showing 1–6 of 3,572 bookings</p>
-          <div className="flex items-center gap-1">
-            {['1','2','3','…','60'].map(p => (
-              <button key={p} className={`w-8 h-8 rounded-xl text-sm font-medium transition-colors ${p === '1' ? 'bg-ink text-white' : 'hover:bg-sheet text-ink-muted'}`}>{p}</button>
-            ))}
-          </div>
+          <p className="text-xs text-ink-muted">Showing {filtered.length} bookings</p>
         </div>
       </div>
     </div>
-  )
+  );
 }
