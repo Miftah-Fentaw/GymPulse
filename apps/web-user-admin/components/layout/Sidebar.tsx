@@ -1,8 +1,9 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { apiFetch, extractCount } from '../../lib/apiClient';
 import {
   LayoutDashboard,
   Users,
@@ -27,22 +28,21 @@ import {
   BookOpen,
   FolderGit2,
   Layers,
-  Sparkles,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { MOCK_DISCIPLINES, Discipline } from '@/lib/mockDisciplines'
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useAuth, Discipline } from '../../context/AuthContext';
 
 interface Item {
-  label: string
-  href?: string
-  icon: React.ReactNode
-  badge?: string | number
-  children?: { label: string; href: string }[]
+  label: string;
+  href?: string;
+  icon: React.ReactNode;
+  badge?: string | number;
+  children?: { label: string; href: string }[];
 }
 
 interface Group {
-  title?: string
-  items: Item[]
+  title?: string;
+  items: Item[];
 }
 
 const baseNav: Group[] = [
@@ -95,7 +95,7 @@ const baseNav: Group[] = [
           { label: 'New Registrations',href: '/members/new' },
         ],
       },
-      { label: 'Pending Approvals', href: '/members/pending',  icon: <UserCheck size={17} />, badge: 8 },
+      { label: 'Pending Approvals', href: '/members/pending',  icon: <UserCheck size={17} /> },
       { label: 'Banned Users',      href: '/members/banned',   icon: <UserX size={17} /> },
       { label: 'Membership Tiers',  href: '/members/tiers',    icon: <Crown size={17} /> },
     ],
@@ -115,7 +115,6 @@ const baseNav: Group[] = [
       {
         label: 'Bookings',
         icon: <ClipboardList size={17} />,
-        badge: 12,
         children: [
           { label: 'All Bookings',   href: '/bookings' },
           { label: 'Pending',        href: '/bookings?status=pending' },
@@ -148,21 +147,21 @@ const baseNav: Group[] = [
       { label: 'Member Growth',  href: '/analytics/growth',    icon: <TrendingUp size={17} /> },
       { label: 'Class Activity', href: '/analytics/activity',  icon: <Activity size={17} /> },
       { label: 'Audit Logs',     href: '/audit-logs',          icon: <ScrollText size={17} /> },
-      { label: 'Notifications',  href: '/notifications',        icon: <Bell size={17} />, badge: 3 },
+      { label: 'Notifications',  href: '/notifications',        icon: <Bell size={17} /> },
       { label: 'Settings',       href: '/settings',             icon: <Settings size={17} /> },
       { label: 'Help',           href: '/help',                 icon: <HelpCircle size={17} /> },
     ],
   },
-]
+];
 
 function NavRow({ item }: { item: Item }) {
-  const pathname = usePathname()
+  const pathname = usePathname();
   const [open, setOpen] = useState(() =>
     item.children ? item.children.some(c => pathname === c.href || pathname.startsWith(c.href + '/')) : false
-  )
+  );
 
   if (item.children) {
-    const isActive = item.children.some(c => pathname === c.href || pathname.startsWith(c.href + '/'))
+    const isActive = item.children.some(c => pathname === c.href || pathname.startsWith(c.href + '/'));
     return (
       <div>
         <button
@@ -183,7 +182,7 @@ function NavRow({ item }: { item: Item }) {
         {open && (
           <div className="ml-8 mt-0.5 space-y-0.5 border-l border-sheet-border pl-2">
             {item.children.map(c => {
-              const active = pathname === c.href
+              const active = pathname === c.href;
               return (
                 <Link
                   key={c.href}
@@ -197,15 +196,15 @@ function NavRow({ item }: { item: Item }) {
                 >
                   {c.label}
                 </Link>
-              )
+              );
             })}
           </div>
         )}
       </div>
-    )
+    );
   }
 
-  const active = pathname === item.href
+  const active = pathname === item.href;
   return (
     <Link href={item.href!} className={cn('nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all', active ? 'bg-ink text-white font-semibold' : 'text-ink-muted hover:bg-sheet-hover hover:text-ink')}>
       <span className="shrink-0">{item.icon}</span>
@@ -219,12 +218,28 @@ function NavRow({ item }: { item: Item }) {
         </span>
       )}
     </Link>
-  )
+  );
 }
 
 export function Sidebar() {
-  const [activeDiscipline, setActiveDiscipline] = useState<Discipline>(MOCK_DISCIPLINES[0])
-  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const { user, role, myDisciplines, activeDiscipline, setActiveDiscipline } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [pendingBookings, setPendingBookings] = useState<number | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data, error } = await apiFetch('/admin/bookings/stats');
+      if (!error && data) {
+        const n = extractCount(data.pending);
+        setPendingBookings(n > 0 ? n : null);
+      }
+    };
+    load();
+  }, []);
+
+  const userEmail = user?.email || '';
+  const roleDisplay = role ? role.replace('_', ' ').toUpperCase() : '';
+  const initials = userEmail ? userEmail.substring(0, 2).toUpperCase() : 'GP';
 
   return (
     <aside className="fixed inset-y-0 left-0 w-60 bg-sheet-card flex flex-col z-40 shadow-xs border-r border-sheet-border">
@@ -248,10 +263,12 @@ export function Sidebar() {
           className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-sheet hover:bg-sheet-hover border border-sheet-border transition-colors text-left"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-base shrink-0">{activeDiscipline.icon}</span>
+            <span className="text-base shrink-0">{activeDiscipline?.icon || '🥊'}</span>
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-ink-ghost leading-none">Managed Sport</p>
-              <p className="text-xs font-bold text-ink truncate leading-tight mt-0.5">{activeDiscipline.name}</p>
+              <p className="text-xs font-bold text-ink truncate leading-tight mt-0.5">
+                {activeDiscipline?.name || 'Select Sport'}
+              </p>
             </div>
           </div>
           <ChevronDown size={14} className="text-ink-ghost shrink-0" />
@@ -259,24 +276,28 @@ export function Sidebar() {
 
         {dropdownOpen && (
           <div className="absolute top-full left-3 right-3 mt-1.5 bg-white rounded-2xl shadow-card border border-sheet-border p-1.5 z-50 space-y-0.5 max-h-56 overflow-y-auto">
-            <p className="px-2.5 py-1 text-[10px] font-bold text-ink-ghost uppercase tracking-wider">Assigned Sports</p>
-            {MOCK_DISCIPLINES.map(d => (
+            <p className="px-2.5 py-1 text-[10px] font-bold text-ink-ghost uppercase tracking-wider">
+              Assigned Sports ({myDisciplines.length})
+            </p>
+            {myDisciplines.map((d: Discipline) => (
               <button
                 key={d.id}
                 onClick={() => {
-                  setActiveDiscipline(d)
-                  setDropdownOpen(false)
+                  setActiveDiscipline(d);
+                  setDropdownOpen(false);
                 }}
                 className={cn(
                   'w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs text-left transition-colors',
-                  activeDiscipline.id === d.id ? 'bg-ink text-white font-semibold' : 'hover:bg-sheet text-ink'
+                  activeDiscipline?.id === d.id ? 'bg-ink text-white font-semibold' : 'hover:bg-sheet text-ink'
                 )}
               >
-                <span>{d.icon}</span>
+                <span>{d.icon || '🥊'}</span>
                 <span className="flex-1 truncate">{d.name}</span>
-                <span className="text-[10px] opacity-70">{d.enrolledMembers} members</span>
               </button>
             ))}
+            {myDisciplines.length === 0 && (
+              <p className="px-2.5 py-2 text-xs text-ink-ghost">No assigned sports found</p>
+            )}
           </div>
         )}
       </div>
@@ -290,7 +311,13 @@ export function Sidebar() {
                 {group.title}
               </p>
             )}
-            {group.items.map(item => <NavRow key={item.label} item={item} />)}
+            {group.items.map((item) => {
+              const withBadge =
+                item.label === 'Bookings' && pendingBookings != null
+                  ? { ...item, badge: pendingBookings }
+                  : item;
+              return <NavRow key={item.label} item={withBadge} />;
+            })}
           </div>
         ))}
       </nav>
@@ -300,16 +327,18 @@ export function Sidebar() {
         <div className="flex items-center gap-2.5">
           <div className="relative shrink-0">
             <div className="w-8 h-8 rounded-full bg-ink flex items-center justify-center">
-              <span className="text-xs font-bold text-white">SA</span>
+              <span className="text-xs font-bold text-white">{initials}</span>
             </div>
             <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-ok rounded-full border-2 border-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-ink leading-tight truncate">Sport Admin</p>
-            <p className="text-[10px] text-ink-ghost truncate">{activeDiscipline.name} Lead</p>
+            <p className="text-xs font-bold text-ink leading-tight truncate">{userEmail}</p>
+            <p className="text-[10px] text-ink-ghost truncate">
+              {activeDiscipline ? `${activeDiscipline.name} Lead` : roleDisplay}
+            </p>
           </div>
         </div>
       </div>
     </aside>
-  )
+  );
 }
