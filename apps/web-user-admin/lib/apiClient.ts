@@ -85,3 +85,48 @@ export async function apiFetch<T = any>(
     };
   }
 }
+
+export function asArray<T = any>(data: any): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && Array.isArray(data.users)) return data.users as T[];
+  if (data && Array.isArray(data.items)) return data.items as T[];
+  return [];
+}
+
+export function extractCount(value: any): number {
+  if (value == null) return 0;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value !== '' && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 0;
+    return extractCount(value[0]);
+  }
+  if (typeof value === 'object') {
+    if ('count' in value) return extractCount(value.count);
+    if ('total' in value) return extractCount(value.total);
+  }
+  return 0;
+}
+
+export function formatDate(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleString();
+}
+
+export function formatDay(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleDateString();
+}
+
+export function initialsFrom(name?: string | null, email?: string | null): string {
+  const src = (name || email || 'GP').trim();
+  const parts = src.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return src.slice(0, 2).toUpperCase();
+}
