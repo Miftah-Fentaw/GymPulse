@@ -44,6 +44,9 @@ func (h *Handler) ListContent(w http.ResponseWriter, r *http.Request) {
 	if role == middleware.RoleSportAdmin {
 		filter += "&created_by=eq." + uid
 	}
+	if discID := q.Get("discipline_id"); discID != "" {
+		filter += "&discipline_id=eq." + discID
+	}
 	if ct := q.Get("type"); ct != "" {
 		filter += "&content_type=eq." + ct
 	}
@@ -80,12 +83,13 @@ func (h *Handler) GetContent(w http.ResponseWriter, r *http.Request) {
 // POST /admin/content
 func (h *Handler) CreateContent(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title       string   `json:"title"`
-		Description string   `json:"description"`
-		ContentType string   `json:"content_type"`
-		Tags        []string `json:"tags"`
-		CategoryID  string   `json:"category_id"`
-		IsPublished bool     `json:"is_published"`
+		Title        string   `json:"title"`
+		Description  string   `json:"description"`
+		ContentType  string   `json:"content_type"`
+		Tags         []string `json:"tags"`
+		CategoryID   string   `json:"category_id"`
+		DisciplineID string   `json:"discipline_id"`
+		IsPublished  bool     `json:"is_published"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w, "invalid request body")
@@ -101,7 +105,7 @@ func (h *Handler) CreateContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.sb.DB("POST", "content_posts", map[string]interface{}{
+	payload := map[string]interface{}{
 		"title":        req.Title,
 		"description":  req.Description,
 		"content_type": req.ContentType,
@@ -109,7 +113,12 @@ func (h *Handler) CreateContent(w http.ResponseWriter, r *http.Request) {
 		"category_id":  req.CategoryID,
 		"is_published": req.IsPublished,
 		"created_by":   middleware.UserID(r.Context()),
-	})
+	}
+	if req.DisciplineID != "" {
+		payload["discipline_id"] = req.DisciplineID
+	}
+
+	result, err := h.sb.DB("POST", "content_posts", payload)
 	if err != nil {
 		response.InternalError(w, err.Error())
 		return
@@ -336,21 +345,35 @@ func (h *Handler) ListContentCategories(w http.ResponseWriter, r *http.Request) 
 // POST /admin/content/categories  (super_admin only)
 func (h *Handler) CreateContentCategory(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Slug        string `json:"slug"`
+		Name         string `json:"name"`
+		Description  string `json:"description"`
+		Slug         string `json:"slug"`
+		DisciplineID string `json:"discipline_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" || req.Slug == "" {
 		response.BadRequest(w, "name and slug are required")
 		return
 	}
-	result, err := h.sb.DB("POST", "content_categories",
-		map[string]interface{}{"name": req.Name, "description": req.Description, "slug": req.Slug})
+	payload := map[string]interface{}{"name": req.Name, "description": req.Description, "slug": req.Slug}
+	if req.DisciplineID != "" {
+		payload["discipline_id"] = req.DisciplineID
+	}
+	result, err := h.sb.DB("POST", "content_categories", payload)
 	if err != nil {
 		response.InternalError(w, err.Error())
 		return
 	}
 	response.Created(w, result)
+}
+
+// DELETE /admin/content/categories/{id}
+func (h *Handler) DeleteContentCategory(w http.ResponseWriter, r *http.Request) {
+	id := middleware.URLParam(r, "id")
+	if _, err := h.sb.DB("DELETE", "content_categories?id=eq."+id, nil); err != nil {
+		response.InternalError(w, err.Error())
+		return
+	}
+	response.NoContent(w)
 }
 
 // ─── Sport-specific content (workouts, programs) ──────────────────────────────
@@ -365,6 +388,9 @@ func (h *Handler) ListWorkouts(w http.ResponseWriter, r *http.Request) {
 	filter := fmt.Sprintf("select=*,workout_categories(name)&order=created_at.desc&%s", p.QueryFragment())
 	if role == middleware.RoleSportAdmin {
 		filter += "&created_by=eq." + uid
+	}
+	if discID := q.Get("discipline_id"); discID != "" {
+		filter += "&discipline_id=eq." + discID
 	}
 	if d := q.Get("difficulty"); d != "" {
 		filter += "&difficulty=eq." + d
@@ -405,6 +431,7 @@ func (h *Handler) CreateWorkout(w http.ResponseWriter, r *http.Request) {
 		DurationMins int      `json:"duration_mins"`
 		Difficulty   string   `json:"difficulty"`
 		CategoryID   string   `json:"category_id"`
+		DisciplineID string   `json:"discipline_id"`
 		Tags         []string `json:"tags"`
 		ThumbnailURL string   `json:"thumbnail_url"`
 		VideoURL     string   `json:"video_url"`
@@ -414,14 +441,18 @@ func (h *Handler) CreateWorkout(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "title is required")
 		return
 	}
-	result, err := h.sb.DB("POST", "workouts", map[string]interface{}{
+	payload := map[string]interface{}{
 		"title": req.Title, "description": req.Description,
 		"duration_mins": req.DurationMins, "difficulty": req.Difficulty,
 		"category_id": req.CategoryID, "tags": req.Tags,
 		"thumbnail_url": req.ThumbnailURL, "video_url": req.VideoURL,
 		"is_published": req.IsPublished,
 		"created_by":   middleware.UserID(r.Context()),
-	})
+	}
+	if req.DisciplineID != "" {
+		payload["discipline_id"] = req.DisciplineID
+	}
+	result, err := h.sb.DB("POST", "workouts", payload)
 	if err != nil {
 		response.InternalError(w, err.Error())
 		return
@@ -678,6 +709,16 @@ func (h *Handler) CreateWorkoutCategory(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	response.Created(w, result)
+}
+
+// DELETE /admin/content/workout-categories/{id}
+func (h *Handler) DeleteWorkoutCategory(w http.ResponseWriter, r *http.Request) {
+	id := middleware.URLParam(r, "id")
+	if _, err := h.sb.DB("DELETE", "workout_categories?id=eq."+id, nil); err != nil {
+		response.InternalError(w, err.Error())
+		return
+	}
+	response.NoContent(w)
 }
 
 // POST /admin/content/media/upload/image

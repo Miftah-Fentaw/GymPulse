@@ -3,7 +3,6 @@ package system
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"gympulse/backend/internal/config"
@@ -168,25 +167,38 @@ func (h *Handler) ListStorageBuckets(w http.ResponseWriter, r *http.Request) {
 // GET /admin/system/admins/overview
 // Returns counts per admin role — useful for the super-admin dashboard.
 func (h *Handler) AdminsOverview(w http.ResponseWriter, r *http.Request) {
-	result, err := h.sb.AuthRequest("GET",
-		fmt.Sprintf("/auth/v1/admin/users?page=1&per_page=1000"), nil, "")
-	if err != nil {
-		response.InternalError(w, err.Error())
-		return
-	}
-	rm, _ := result.(map[string]interface{})
-	users, _ := rm["users"].([]interface{})
-
 	counts := map[string]int{
 		"super_admin": 0, "user_admin": 0, "shop_admin": 0, "sport_admin": 0, "regular_user": 0,
 	}
-	for _, u := range users {
-		um, _ := u.(map[string]interface{})
-		meta, _ := um["app_metadata"].(map[string]interface{})
-		role, _ := meta["admin_role"].(string)
-		if role == "" {
-			counts["regular_user"]++
-		} else {
+
+	result, err := h.sb.AuthRequest("GET", "/auth/v1/admin/users?page=1&per_page=1000", nil, "")
+	if err == nil {
+		rm, _ := result.(map[string]interface{})
+		users, _ := rm["users"].([]interface{})
+		for _, u := range users {
+			um, _ := u.(map[string]interface{})
+			meta, _ := um["app_metadata"].(map[string]interface{})
+			role, _ := meta["admin_role"].(string)
+			if role == "" {
+				counts["regular_user"]++
+			} else {
+				counts[role]++
+			}
+		}
+		response.OK(w, counts)
+		return
+	}
+
+	view, vErr := h.sb.DB("GET", "admin_users?select=admin_role", nil)
+	if vErr != nil {
+		response.InternalError(w, err.Error())
+		return
+	}
+	rows, _ := view.([]interface{})
+	for _, raw := range rows {
+		um, _ := raw.(map[string]interface{})
+		role, _ := um["admin_role"].(string)
+		if role != "" {
 			counts[role]++
 		}
 	}

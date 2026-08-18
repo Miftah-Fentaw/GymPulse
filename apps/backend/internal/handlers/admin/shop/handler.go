@@ -208,6 +208,16 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	response.Created(w, result)
 }
 
+// DELETE /admin/shop/categories/{id}
+func (h *Handler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
+	id := middleware.URLParam(r, "id")
+	if _, err := h.sb.DB("DELETE", "product_categories?id=eq."+id, nil); err != nil {
+		response.InternalError(w, err.Error())
+		return
+	}
+	response.NoContent(w)
+}
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 // GET /admin/shop/orders
