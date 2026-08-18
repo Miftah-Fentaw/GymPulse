@@ -1,17 +1,15 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import {
   LayoutDashboard,
   Users,
   ShieldCheck,
   Package,
   ShoppingCart,
-  ClipboardList,
   Dumbbell,
-  BookOpen,
   Layers,
   FileText,
   Megaphone,
@@ -22,23 +20,24 @@ import {
   ChevronDown,
   ChevronRight,
   Zap,
-  Tag,
   Medal,
   Activity,
   TrendingUp,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+  MapPin,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 interface NavItem {
-  label: string
-  href?: string
-  icon: React.ReactNode
-  children?: { label: string; href: string }[]
+  label: string;
+  href?: string;
+  icon: React.ReactNode;
+  children?: { label: string; href: string }[];
 }
 
 interface NavGroup {
-  title: string
-  items: NavItem[]
+  title: string;
+  items: NavItem[];
 }
 
 const navigation: NavGroup[] = [
@@ -177,19 +176,29 @@ const navigation: NavGroup[] = [
         href: '/system/settings',
         icon: <Settings size={18} />,
       },
+      {
+        label: 'Locations',
+        href: '/locations',
+        icon: <MapPin size={18} />,
+      },
+      {
+        label: 'Disciplines',
+        href: '/disciplines',
+        icon: <Medal size={18} />,
+      },
     ],
   },
-]
+];
 
-function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
-  const pathname = usePathname()
+function NavItemRow({ item }: { item: NavItem }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(() => {
-    if (!item.children) return false
-    return item.children.some((c) => pathname.startsWith(c.href))
-  })
+    if (!item.children) return false;
+    return item.children.some((c) => pathname.startsWith(c.href));
+  });
 
   if (item.children) {
-    const isActive = item.children.some((c) => pathname.startsWith(c.href))
+    const isActive = item.children.some((c) => pathname.startsWith(c.href));
     return (
       <div>
         <button
@@ -206,7 +215,7 @@ function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
         {open && (
           <div className="ml-7 mt-0.5 space-y-0.5 border-l border-sidebar-border pl-3">
             {item.children.map((child) => {
-              const active = pathname === child.href || pathname.startsWith(child.href + '/')
+              const active = pathname === child.href || pathname.startsWith(child.href + '/');
               return (
                 <Link
                   key={child.href}
@@ -220,15 +229,15 @@ function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
                 >
                   {child.label}
                 </Link>
-              )
+              );
             })}
           </div>
         )}
       </div>
-    )
+    );
   }
 
-  const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
+  const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
   return (
     <Link
       href={item.href!}
@@ -237,10 +246,13 @@ function NavItemRow({ item, depth = 0 }: { item: NavItem; depth?: number }) {
       <span className="shrink-0">{item.icon}</span>
       <span>{item.label}</span>
     </Link>
-  )
+  );
 }
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
+  const { user, role } = useAuth();
+  const roleDisplay = role ? role.replace('_', ' ').toUpperCase() : 'SUPER ADMIN';
+
   return (
     <aside
       className={cn(
@@ -256,7 +268,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         {!collapsed && (
           <div>
             <p className="text-white font-bold text-sm leading-tight">GymPulse</p>
-            <p className="text-sidebar-muted text-[10px]">Super Admin</p>
+            <p className="text-sidebar-muted text-[10px]">{roleDisplay}</p>
           </div>
         )}
       </div>
@@ -291,11 +303,11 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       {/* Footer */}
       {!collapsed && (
         <div className="px-4 py-4 border-t border-sidebar-border shrink-0">
-          <p className="text-[10px] text-sidebar-muted text-center">
-            GymPulse v1.0 · Super Admin
+          <p className="text-[10px] text-sidebar-muted text-center truncate">
+            {user?.email || ''}
           </p>
         </div>
       )}
     </aside>
-  )
+  );
 }
