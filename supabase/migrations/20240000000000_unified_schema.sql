@@ -98,9 +98,25 @@ select
   u.banned_until,
   u.raw_user_meta_data->>'full_name' as full_name,
   u.raw_app_meta_data->>'admin_role' as admin_role,
-  (u.raw_app_meta_data->>'is_admin')::boolean as is_admin
+  (u.raw_app_meta_data->>'is_admin')::boolean as is_admin,
+  u.email_confirmed_at
 from auth.users u
 where u.raw_app_meta_data->>'admin_role' is not null;
+
+create or replace view public.app_users as
+select
+  u.id,
+  u.email,
+  u.created_at,
+  u.last_sign_in_at,
+  u.banned_until,
+  u.raw_user_meta_data->>'full_name' as full_name,
+  u.raw_app_meta_data->>'admin_role' as admin_role,
+  p.phone,
+  p.avatar_url,
+  u.email_confirmed_at
+from auth.users u
+left join public.profiles p on p.id = u.id;
 
 -- =============================================================================
 -- AUDIT LOGS & PLATFORM SETTINGS
@@ -816,3 +832,22 @@ create policy "Users upload own avatar"
 create policy "Service role manage avatars"
   on storage.objects for all
   using (bucket_id = 'avatars' and auth.role() = 'service_role');
+
+-- =============================================================================
+-- SEED DEFAULT DISCIPLINES
+-- =============================================================================
+insert into public.disciplines (id, name, slug, description, color, icon, is_active)
+values
+  ('c1000000-0000-0000-0000-000000000001', 'Boxing', 'boxing', 'Sweet science of punching technique, footwork, speed bag drills, and high-intensity conditioning.', '#EF4444', '🥊', true),
+  ('c1000000-0000-0000-0000-000000000002', 'Aerobics & Cardio', 'aerobics', 'Dynamic group cardio workouts, dance rhythms, step conditioning, and fat-burning endurance sessions.', '#F59E0B', '🏃', true),
+  ('c1000000-0000-0000-0000-000000000003', 'Gym & Bodybuilding', 'gym', 'Comprehensive strength training, hypertrophy split routines, powerlifting, and machine workouts.', '#3B82F6', '🏋️', true),
+  ('c1000000-0000-0000-0000-000000000004', 'CrossFit & WOD', 'crossfit', 'Constantly varied functional movements performed at high intensity for total athletic conditioning.', '#10B981', '⚡', true),
+  ('c1000000-0000-0000-0000-000000000005', 'MMA & Grappling', 'mma', 'Mixed Martial Arts integrating wrestling, Brazilian Jiu-Jitsu, striking, and cage control.', '#8B5CF6', '🥋', true),
+  ('c1000000-0000-0000-0000-000000000006', 'Yoga & Flexibility', 'yoga', 'Mindful movement, Vinyasa flows, deep stretching, posture alignment, and stress recovery.', '#EC4899', '🧘', true)
+on conflict (slug) do update set
+  name = excluded.name,
+  description = excluded.description,
+  color = excluded.color,
+  icon = excluded.icon,
+  is_active = excluded.is_active;
+
