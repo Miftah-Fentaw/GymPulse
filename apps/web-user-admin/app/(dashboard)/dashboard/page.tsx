@@ -5,7 +5,7 @@ import {
   Users, UserCheck, Dumbbell, ClipboardList, ShieldCheck,
   ArrowUpRight, Loader2, ServerCrash,
 } from 'lucide-react';
-import { apiFetch, asArray, extractCount, formatDate, initialsFrom } from '../../lib/apiClient';
+import { apiFetch, asArray, extractCount, formatDate, initialsFrom } from '../../../lib/apiClient';
 
 export default function DashboardPage() {
   const [overview, setOverview] = useState<any>(null);

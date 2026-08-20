@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Bell, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray, formatDate } from '../../lib/apiClient';
+import { apiFetch, asArray, formatDate } from '../../../lib/apiClient';
 
 export default function NotificationsPage() {
   const [items, setItems] = useState<any[]>([]);

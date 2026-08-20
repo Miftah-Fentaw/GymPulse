@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Users, Dumbbell, ClipboardList, ShieldCheck, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray, extractCount } from '../../lib/apiClient';
+import { apiFetch, asArray, extractCount } from '../../../lib/apiClient';
 
 export default function AnalyticsPage() {
   const [overview, setOverview] = useState<any>(null);

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray } from '../../../lib/apiClient';
+import { apiFetch, asArray } from '../../../../lib/apiClient';
 
 export default function CreateTrainerPage() {
   const router = useRouter();

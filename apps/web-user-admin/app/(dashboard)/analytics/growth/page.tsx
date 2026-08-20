@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray, extractCount } from '../../../lib/apiClient';
+import { apiFetch, asArray, extractCount } from '../../../../lib/apiClient';
 
 export default function MemberGrowthPage() {
   const [overview, setOverview] = useState<any>(null);

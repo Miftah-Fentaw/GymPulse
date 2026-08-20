@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray } from '../../../lib/apiClient';
+import { apiFetch, asArray } from '../../../../lib/apiClient';
 
 function toIso(local: string) {
   if (!local) return '';

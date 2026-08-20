@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ShieldCheck, Check, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray, formatDate, initialsFrom } from '../../../lib/apiClient';
+import { apiFetch, asArray, formatDate, initialsFrom } from '../../../../lib/apiClient';
 
 export default function PendingTrainersPage() {
   const [trainers, setTrainers] = useState<any[]>([]);

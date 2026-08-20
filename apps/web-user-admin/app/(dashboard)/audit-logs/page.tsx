@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Loader2, ServerCrash, ShieldAlert } from 'lucide-react';
-import { apiFetch, asArray, formatDate } from '../../lib/apiClient';
+import { apiFetch, asArray, formatDate } from '../../../lib/apiClient';
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<any[]>([]);

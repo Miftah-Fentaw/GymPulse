@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { UserPlus, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray, formatDate, initialsFrom } from '../../../lib/apiClient';
+import { apiFetch, asArray, formatDate, initialsFrom } from '../../../../lib/apiClient';
 
 type AppUser = {
   id: string;

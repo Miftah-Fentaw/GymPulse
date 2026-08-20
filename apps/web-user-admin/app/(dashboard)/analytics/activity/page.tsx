@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Activity, ClipboardList, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray, extractCount } from '../../../lib/apiClient';
+import { apiFetch, asArray, extractCount } from '../../../../lib/apiClient';
 
 export default function ClassActivityPage() {
   const [overview, setOverview] = useState<any>(null);

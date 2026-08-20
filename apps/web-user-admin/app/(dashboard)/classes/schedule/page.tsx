@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray } from '../../../lib/apiClient';
+import { apiFetch, asArray } from '../../../../lib/apiClient';
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 

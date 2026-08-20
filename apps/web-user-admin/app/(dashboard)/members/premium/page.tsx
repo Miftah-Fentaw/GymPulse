@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Crown, Loader2, ServerCrash } from 'lucide-react';
-import { apiFetch, asArray, formatDay, initialsFrom } from '../../../lib/apiClient';
+import { apiFetch, asArray, formatDay, initialsFrom } from '../../../../lib/apiClient';
 
 type AppUser = {
   id: string;
