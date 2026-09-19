@@ -1,0 +1,6157 @@
+openapi: 3.1.0
+info:
+  title: GymPulse API
+  version: 0.0.2
+  description: |
+    HTTP contract for the GymPulse Go server.
+    Paths are the product catalog. Handlers are implemented per OpenSpec change.
+    Each operation is marked Phase MVP or Later. oapi-codegen currently generates
+    only getHealth, getReady, and postEcho until the owning change is applied.
+servers:
+  - url: /
+tags:
+  - name: health
+  - name: auth
+  - name: gym
+  - name: members
+  - name: memberships
+  - name: leads
+  - name: checkin
+  - name: billing
+  - name: classes
+  - name: trainers
+  - name: workouts
+  - name: storage
+  - name: reports
+  - name: notifications
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      tags: [health]
+      summary: Liveness probe
+      description: |
+        Phase: mvp. Change: bootstrap-server. Requires: public. Returns 200 if the process is running. Does not ping the database.
+      x-gympulse-phase: mvp
+      x-gympulse-change: bootstrap-server
+      x-gympulse-requires: public
+      security: []
+      responses:
+        "200":
+          description: Process is up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /ready:
+    get:
+      operationId: getReady
+      tags: [health]
+      summary: Readiness probe
+      description: |
+        Phase: mvp. Change: bootstrap-server. Requires: public. Returns 200 when the database ping succeeds, otherwise 503.
+      x-gympulse-phase: mvp
+      x-gympulse-change: bootstrap-server
+      x-gympulse-requires: public
+      security: []
+      responses:
+        "200":
+          description: Database is reachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+        "503":
+          description: Database is not reachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+  /v1/echo:
+    post:
+      operationId: postEcho
+      tags: [health]
+      summary: Bootstrap validation probe
+      description: |
+        Phase: mvp. Change: bootstrap-server. Requires: public. Echoes a message. Used to exercise OpenAPI request validation.
+      x-gympulse-phase: mvp
+      x-gympulse-change: bootstrap-server
+      x-gympulse-requires: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EchoRequest'
+      responses:
+        "200":
+          description: Echoed message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EchoResponse'
+        "400":
+          $ref: '#/components/responses/Error'
+  /v1/auth/login:
+    post:
+      operationId: postAuthLogin
+      tags: [auth]
+      summary: Password login
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: public. Rate-limited. MUST NOT reveal whether the email exists.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/auth/refresh:
+    post:
+      operationId: postAuthRefresh
+      tags: [auth]
+      summary: Rotate refresh session
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: public. Primary: httpOnly cookie. JSON body token is fallback. CSRF Origin + X-GymPulse-Client.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: public
+      security: []
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/auth/logout:
+    post:
+      operationId: postAuthLogout
+      tags: [auth]
+      summary: Revoke current refresh session
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/auth/bootstrap-owner:
+    post:
+      operationId: postAuthBootstrapOwner
+      tags: [auth]
+      summary: Create first owner
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: public. Rejected once an owner exists.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootstrapOwnerRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/auth/password/change:
+    post:
+      operationId: postAuthPasswordChange
+      tags: [auth]
+      summary: Change own password
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/auth/password/forgot:
+    post:
+      operationId: postAuthPasswordForgot
+      tags: [auth]
+      summary: Request password reset
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: public. Always returns success. Enqueues a reset token via the notification outbox.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordForgotRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/auth/password/reset:
+    post:
+      operationId: postAuthPasswordReset
+      tags: [auth]
+      summary: Reset password with token
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: public.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/auth/invite:
+    post:
+      operationId: postAuthInvite
+      tags: [auth]
+      summary: Invite staff
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffInviteRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/auth/invite/accept:
+    post:
+      operationId: postAuthInviteAccept
+      tags: [auth]
+      summary: Accept staff invite
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: public.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteAcceptRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/auth/verify-email:
+    post:
+      operationId: postAuthVerifyEmail
+      tags: [auth]
+      summary: Request email verification
+      description: |
+        Phase: later. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: later
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/auth/verify-phone:
+    post:
+      operationId: postAuthVerifyPhone
+      tags: [auth]
+      summary: Request phone verification
+      description: |
+        Phase: later. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: later
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/auth/verify/confirm:
+    post:
+      operationId: postAuthVerifyConfirm
+      tags: [auth]
+      summary: Confirm email or phone token
+      description: |
+        Phase: later. Change: auth-and-roles. Requires: public.
+      x-gympulse-phase: later
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyConfirmRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Current user profile
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchMe
+      tags: [auth]
+      summary: Update current user profile
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MePatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/me/sessions:
+    get:
+      operationId: listMySessions
+      tags: [auth]
+      summary: List own refresh sessions
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/me/sessions/{sessionId}:
+    delete:
+      operationId: revokeMySession
+      tags: [auth]
+      summary: Revoke one of own sessions
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/staff:
+    get:
+      operationId: listStaff
+      tags: [auth]
+      summary: List staff accounts
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/staff/{staffId}:
+    get:
+      operationId: getStaff
+      tags: [auth]
+      summary: Get staff account
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: staffId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchStaff
+      tags: [auth]
+      summary: Update staff account
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: staffId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/staff/{staffId}/roles:
+    put:
+      operationId: putStaffRoles
+      tags: [auth]
+      summary: Replace staff roles
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: staffId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRolesRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/staff/{staffId}/deactivate:
+    post:
+      operationId: postStaffDeactivate
+      tags: [auth]
+      summary: Deactivate staff
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: staffId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/staff/{staffId}/reactivate:
+    post:
+      operationId: postStaffReactivate
+      tags: [auth]
+      summary: Reactivate staff
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: staffId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/staff/{staffId}/revoke-sessions:
+    post:
+      operationId: postStaffRevokeSessions
+      tags: [auth]
+      summary: Revoke all sessions for a user
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: staffId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/audit-events:
+    get:
+      operationId: listAuditEvents
+      tags: [auth]
+      summary: List audit events
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: actor_user_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: action
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/gym:
+    get:
+      operationId: getGym
+      tags: [gym]
+      summary: Get gym settings
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchGym
+      tags: [gym]
+      summary: Update gym settings
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager. Name, timezone, currency, contact.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GymPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/gym/branding:
+    get:
+      operationId: getGymBranding
+      tags: [gym]
+      summary: Get public branding
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchGymBranding
+      tags: [gym]
+      summary: Update public branding
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager. Logo file id, colors, public copy for landing.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandingPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/branches:
+    get:
+      operationId: listBranches
+      tags: [gym]
+      summary: List branches
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createBranch
+      tags: [gym]
+      summary: Create branch
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/branches/{branchId}:
+    get:
+      operationId: getBranch
+      tags: [gym]
+      summary: Get branch
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchBranch
+      tags: [gym]
+      summary: Update branch
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BranchPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/branches/{branchId}/archive:
+    post:
+      operationId: archiveBranch
+      tags: [gym]
+      summary: Archive branch
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner
+      parameters:
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/branches/{branchId}/hours:
+    get:
+      operationId: getBranchHours
+      tags: [gym]
+      summary: Get business hours
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    put:
+      operationId: putBranchHours
+      tags: [gym]
+      summary: Replace business hours
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoursRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/gym/holidays:
+    get:
+      operationId: listHolidays
+      tags: [gym]
+      summary: List gym holidays
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager, receptionist
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createHoliday
+      tags: [gym]
+      summary: Create gym holiday
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HolidayCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/gym/holidays/{holidayId}:
+    delete:
+      operationId: deleteHoliday
+      tags: [gym]
+      summary: Delete gym holiday
+      description: |
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: auth-and-roles
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: holidayId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      summary: Search members
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: plan_id
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createMember
+      tags: [members]
+      summary: Create member
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}:
+    get:
+      operationId: getMember
+      tags: [members]
+      summary: Get member
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist, assigned trainer, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist, assigned trainer, owning member
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchMember
+      tags: [members]
+      summary: Update member
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist, owning member
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/archive:
+    post:
+      operationId: archiveMember
+      tags: [members]
+      summary: Archive member
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/restore:
+    post:
+      operationId: restoreMember
+      tags: [members]
+      summary: Restore archived member
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/notes:
+    get:
+      operationId: listMemberNotes
+      tags: [members]
+      summary: List member notes
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createMemberNote
+      tags: [members]
+      summary: Add member note
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/export:
+    get:
+      operationId: exportMembers
+      tags: [members]
+      summary: Export members CSV
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/members/import:
+    post:
+      operationId: importMembers
+      tags: [members]
+      summary: Import members CSV
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager. multipart/form-data file; dry-run query supported.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/plans:
+    get:
+      operationId: listPlans
+      tags: [memberships]
+      summary: List membership plans
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createPlan
+      tags: [memberships]
+      summary: Create membership plan
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/plans/{planId}:
+    get:
+      operationId: getPlan
+      tags: [memberships]
+      summary: Get membership plan
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchPlan
+      tags: [memberships]
+      summary: Update membership plan
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: planId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/memberships:
+    get:
+      operationId: listMemberMemberships
+      tags: [memberships]
+      summary: List a member's memberships
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist, owning member
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: assignMembership
+      tags: [memberships]
+      summary: Assign a plan
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipAssignRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/memberships/{membershipId}/freeze:
+    post:
+      operationId: freezeMembership
+      tags: [memberships]
+      summary: Freeze membership
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: membershipId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipFreezeRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/memberships/{membershipId}/resume:
+    post:
+      operationId: resumeMembership
+      tags: [memberships]
+      summary: Resume frozen membership
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: membershipId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/memberships/{membershipId}/cancel:
+    post:
+      operationId: cancelMembership
+      tags: [memberships]
+      summary: Cancel membership
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: membershipId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/memberships/{membershipId}/upgrade:
+    post:
+      operationId: upgradeMembership
+      tags: [memberships]
+      summary: Change plan
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: membershipId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MembershipUpgradeRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/memberships/{membershipId}/renew:
+    post:
+      operationId: renewMembership
+      tags: [memberships]
+      summary: Renew membership
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: membershipId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/memberships/expiring:
+    get:
+      operationId: listExpiringMemberships
+      tags: [memberships]
+      summary: List expiring memberships
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: within_days
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/leads:
+    post:
+      operationId: createLead
+      tags: [leads]
+      summary: Public lead capture
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: public. Honeypot, per-IP rate limit, optional captcha hook.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listLeads
+      tags: [leads]
+      summary: List leads
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/leads/{leadId}:
+    get:
+      operationId: getLead
+      tags: [leads]
+      summary: Get lead
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchLead
+      tags: [leads]
+      summary: Update lead status
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/leads/{leadId}/notes:
+    post:
+      operationId: createLeadNote
+      tags: [leads]
+      summary: Add lead follow-up note
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/leads/{leadId}/convert:
+    post:
+      operationId: convertLead
+      tags: [leads]
+      summary: Convert lead to member
+      description: |
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: members-and-memberships
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: leadId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadConvertRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+        "429":
+          $ref: '#/components/responses/Error'
+  /v1/me/checkin-token:
+    get:
+      operationId: getMyCheckinToken
+      tags: [checkin]
+      summary: Issue 60s signed QR token
+      description: |
+        Phase: mvp. Change: checkin-attendance. Requires: owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: checkin-attendance
+      x-gympulse-requires: owning member
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/checkins:
+    post:
+      operationId: postCheckin
+      tags: [checkin]
+      summary: Consume QR or fallback check-in
+      description: |
+        Phase: mvp. Change: checkin-attendance. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: checkin-attendance
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+    get:
+      operationId: listCheckins
+      tags: [checkin]
+      summary: Attendance history
+      description: |
+        Phase: mvp. Change: checkin-attendance. Requires: owner, manager, receptionist, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: checkin-attendance
+      x-gympulse-requires: owner, manager, receptionist, owning member
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: member_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: day
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/checkins/staff:
+    post:
+      operationId: postStaffCheckin
+      tags: [checkin]
+      summary: Staff search check-in
+      description: |
+        Phase: mvp. Change: checkin-attendance. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: checkin-attendance
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffCheckinRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/checkins/{eventId}:
+    get:
+      operationId: getCheckin
+      tags: [checkin]
+      summary: Get attendance event
+      description: |
+        Phase: mvp. Change: checkin-attendance. Requires: owner, manager, receptionist, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: checkin-attendance
+      x-gympulse-requires: owner, manager, receptionist, owning member
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchCheckin
+      tags: [checkin]
+      summary: Correct attendance event
+      description: |
+        Phase: mvp. Change: checkin-attendance. Requires: owner, manager. Void or correct branch/timestamp. Audited.
+      x-gympulse-phase: mvp
+      x-gympulse-change: checkin-attendance
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinCorrectionRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/checkins/present:
+    get:
+      operationId: listPresentMembers
+      tags: [checkin]
+      summary: Who is in the gym now
+      description: |
+        Phase: mvp. Change: checkin-attendance. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: checkin-attendance
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/checkins/peak-hours:
+    get:
+      operationId: getPeakHours
+      tags: [checkin]
+      summary: Peak hours histogram
+      description: |
+        Phase: later. Change: checkin-attendance. Requires: owner, manager.
+      x-gympulse-phase: later
+      x-gympulse-change: checkin-attendance
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/invoices:
+    get:
+      operationId: listInvoices
+      tags: [billing]
+      summary: List invoices
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: member_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/invoices/{invoiceId}:
+    get:
+      operationId: getInvoice
+      tags: [billing]
+      summary: Get invoice
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager, receptionist, owning member
+      parameters:
+        - in: path
+          name: invoiceId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/invoices/{invoiceId}/void:
+    post:
+      operationId: voidInvoice
+      tags: [billing]
+      summary: Void invoice
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: invoiceId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/invoices/{invoiceId}/discount:
+    post:
+      operationId: discountInvoice
+      tags: [billing]
+      summary: Apply line discount
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager. MVP: manual amount/percent on an issued unpaid invoice. Not a promo-code engine.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: invoiceId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscountRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/invoices/{invoiceId}/payments:
+    post:
+      operationId: createInvoicePayment
+      tags: [billing]
+      summary: Record manual payment
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: invoiceId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/invoices/{invoiceId}/receipt:
+    get:
+      operationId: getInvoiceReceipt
+      tags: [billing]
+      summary: Get receipt for invoice payments
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager, receptionist, owning member
+      parameters:
+        - in: path
+          name: invoiceId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/payments:
+    get:
+      operationId: listPayments
+      tags: [billing]
+      summary: List payments
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: member_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: method
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/payments:
+    get:
+      operationId: listMemberPayments
+      tags: [billing]
+      summary: Member payment history
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager, receptionist, owning member
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/payments/{paymentId}/refund:
+    post:
+      operationId: refundPayment
+      tags: [billing]
+      summary: Refund a payment
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: paymentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/billing/overdue:
+    get:
+      operationId: listOverdueInvoices
+      tags: [billing]
+      summary: List overdue invoices
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/billing/cash-up:
+    get:
+      operationId: getCashUp
+      tags: [billing]
+      summary: Daily cash-up summary
+      description: |
+        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist. Totals by payment method for a gym-local day.
+      x-gympulse-phase: mvp
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: query
+          name: day
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: method
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/promo-codes:
+    get:
+      operationId: listPromoCodes
+      tags: [billing]
+      summary: List promo codes
+      description: |
+        Phase: later. Change: billing-payments. Requires: owner, manager.
+      x-gympulse-phase: later
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createPromoCode
+      tags: [billing]
+      summary: Create promo code
+      description: |
+        Phase: later. Change: billing-payments. Requires: owner, manager.
+      x-gympulse-phase: later
+      x-gympulse-change: billing-payments
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromoCodeCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/class-types:
+    get:
+      operationId: listClassTypes
+      tags: [classes]
+      summary: List class types
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: authenticated
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createClassType
+      tags: [classes]
+      summary: Create class type
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassTypeCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/class-types/{classTypeId}:
+    patch:
+      operationId: patchClassType
+      tags: [classes]
+      summary: Update class type
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: classTypeId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassTypePatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/class-schedules:
+    get:
+      operationId: listClassSchedules
+      tags: [classes]
+      summary: List recurring schedules
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager, receptionist
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createClassSchedule
+      tags: [classes]
+      summary: Create recurring schedule
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassScheduleCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/class-schedules/{scheduleId}:
+    patch:
+      operationId: patchClassSchedule
+      tags: [classes]
+      summary: Update recurring schedule
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: scheduleId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassSchedulePatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/sessions:
+    get:
+      operationId: listSessions
+      tags: [classes]
+      summary: List class sessions
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: class_type_id
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createSession
+      tags: [classes]
+      summary: Create one-off session
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager, receptionist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/sessions/{sessionId}:
+    get:
+      operationId: getSession
+      tags: [classes]
+      summary: Get class session
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchSession
+      tags: [classes]
+      summary: Update class session
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/sessions/{sessionId}/bookings:
+    post:
+      operationId: bookSession
+      tags: [classes]
+      summary: Book a session
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owning member, owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owning member, owner, manager, receptionist
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/bookings/{bookingId}:
+    delete:
+      operationId: cancelBooking
+      tags: [classes]
+      summary: Cancel a booking
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owning member, owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owning member, owner, manager, receptionist
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/sessions/{sessionId}/waitlist:
+    get:
+      operationId: listWaitlist
+      tags: [classes]
+      summary: List session waitlist
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: joinWaitlist
+      tags: [classes]
+      summary: Join waitlist
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owning member
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/waitlist/{waitlistId}:
+    delete:
+      operationId: leaveWaitlist
+      tags: [classes]
+      summary: Leave waitlist
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owning member, owner, manager, receptionist.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owning member, owner, manager, receptionist
+      parameters:
+        - in: path
+          name: waitlistId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/sessions/{sessionId}/attendance:
+    post:
+      operationId: markClassAttendance
+      tags: [classes]
+      summary: Mark class attendance
+      description: |
+        Phase: mvp. Change: classes-booking. Requires: owner, manager, receptionist, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager, receptionist, assigned trainer
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassAttendanceRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/rooms:
+    get:
+      operationId: listRooms
+      tags: [classes]
+      summary: List rooms
+      description: |
+        Phase: later. Change: classes-booking. Requires: owner, manager, receptionist.
+      x-gympulse-phase: later
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager, receptionist
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/equipment:
+    get:
+      operationId: listEquipment
+      tags: [classes]
+      summary: List equipment
+      description: |
+        Phase: later. Change: classes-booking. Requires: owner, manager, receptionist.
+      x-gympulse-phase: later
+      x-gympulse-change: classes-booking
+      x-gympulse-requires: owner, manager, receptionist
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/trainers:
+    get:
+      operationId: listTrainers
+      tags: [trainers]
+      summary: List trainer profiles
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: authenticated
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/trainers/{trainerId}:
+    get:
+      operationId: getTrainer
+      tags: [trainers]
+      summary: Get trainer profile
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: path
+          name: trainerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    patch:
+      operationId: patchTrainer
+      tags: [trainers]
+      summary: Update trainer profile
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager, owning trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager, owning trainer
+      parameters:
+        - in: path
+          name: trainerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainerProfilePatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/trainers/{trainerId}/clients:
+    get:
+      operationId: listTrainerClients
+      tags: [trainers]
+      summary: List assigned clients
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager, owning trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager, owning trainer
+      parameters:
+        - in: path
+          name: trainerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: assignTrainerClient
+      tags: [trainers]
+      summary: Assign client
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: trainerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignClientRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/trainers/{trainerId}/clients/{memberId}:
+    delete:
+      operationId: unassignTrainerClient
+      tags: [trainers]
+      summary: Unassign client
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: trainerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/me/clients:
+    get:
+      operationId: listMyClients
+      tags: [trainers]
+      summary: Trainer's own client list
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: trainer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/trainers/{trainerId}/availability:
+    get:
+      operationId: getTrainerAvailability
+      tags: [trainers]
+      summary: Get trainer availability
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: path
+          name: trainerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    put:
+      operationId: putTrainerAvailability
+      tags: [trainers]
+      summary: Replace trainer availability
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager, owning trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager, owning trainer
+      parameters:
+        - in: path
+          name: trainerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvailabilityRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/pt-sessions:
+    get:
+      operationId: listPtSessions
+      tags: [trainers]
+      summary: List PT sessions
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager, receptionist, owning trainer, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager, receptionist, owning trainer, owning member
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: trainer_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: member_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createPtSession
+      tags: [trainers]
+      summary: Book a PT session
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager, receptionist, owning trainer, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager, receptionist, owning trainer, owning member
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PtSessionCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/pt-sessions/{ptSessionId}:
+    patch:
+      operationId: patchPtSession
+      tags: [trainers]
+      summary: Update or cancel a PT session
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager, receptionist, owning trainer, owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager, receptionist, owning trainer, owning member
+      parameters:
+        - in: path
+          name: ptSessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PtSessionPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/trainer-notes:
+    get:
+      operationId: listTrainerNotes
+      tags: [trainers]
+      summary: List trainer notes on a client
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: owner, manager, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager, assigned trainer
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createTrainerNote
+      tags: [trainers]
+      summary: Add trainer note
+      description: |
+        Phase: mvp. Change: trainers-clients. Requires: assigned trainer, owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: assigned trainer, owner, manager
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/trainers/{trainerId}/commission:
+    get:
+      operationId: getTrainerCommission
+      tags: [trainers]
+      summary: Trainer commission report
+      description: |
+        Phase: later. Change: trainers-clients. Requires: owner, manager.
+      x-gympulse-phase: later
+      x-gympulse-change: trainers-clients
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: trainerId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/exercises:
+    get:
+      operationId: listExercises
+      tags: [workouts]
+      summary: List exercise library
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: authenticated.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createExercise
+      tags: [workouts]
+      summary: Create exercise
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owner, manager, trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owner, manager, trainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExerciseCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/exercises/{exerciseId}:
+    patch:
+      operationId: patchExercise
+      tags: [workouts]
+      summary: Update exercise
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owner, manager, trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owner, manager, trainer
+      parameters:
+        - in: path
+          name: exerciseId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExercisePatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/workout-plans:
+    get:
+      operationId: listWorkoutPlans
+      tags: [workouts]
+      summary: List workout plans
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owner, manager, trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owner, manager, trainer
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createWorkoutPlan
+      tags: [workouts]
+      summary: Create workout plan
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owner, manager, trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owner, manager, trainer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlanCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/workout-plans/{workoutPlanId}:
+    patch:
+      operationId: patchWorkoutPlan
+      tags: [workouts]
+      summary: Update workout plan
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owner, manager, trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owner, manager, trainer
+      parameters:
+        - in: path
+          name: workoutPlanId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutPlanPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/workout-plans:
+    post:
+      operationId: assignWorkoutPlan
+      tags: [workouts]
+      summary: Assign plan to member
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owner, manager, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owner, manager, assigned trainer
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignWorkoutPlanRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/workouts:
+    get:
+      operationId: listMemberWorkouts
+      tags: [workouts]
+      summary: List workout logs
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer, owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer, owner, manager
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createMemberWorkout
+      tags: [workouts]
+      summary: Log a workout
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutLogCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/workouts/{workoutId}:
+    patch:
+      operationId: patchWorkout
+      tags: [workouts]
+      summary: Update a workout log
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer
+      parameters:
+        - in: path
+          name: workoutId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutLogPatchRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/progress:
+    get:
+      operationId: getMemberProgress
+      tags: [workouts]
+      summary: Progress history
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer, owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer, owner, manager
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/measurements:
+    get:
+      operationId: listMeasurements
+      tags: [workouts]
+      summary: List body measurements
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createMeasurement
+      tags: [workouts]
+      summary: Record body measurement
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeasurementCreateRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/goals:
+    get:
+      operationId: getMemberGoals
+      tags: [workouts]
+      summary: Get member goals
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    put:
+      operationId: putMemberGoals
+      tags: [workouts]
+      summary: Replace member goals
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalsRequest'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/members/{memberId}/progress-photos:
+    post:
+      operationId: createProgressPhoto
+      tags: [workouts]
+      summary: Attach progress photo
+      description: |
+        Phase: mvp. Change: workouts-progress. Requires: owning member, assigned trainer. Uses POST /v1/files then links file_id.
+      x-gympulse-phase: mvp
+      x-gympulse-change: workouts-progress
+      x-gympulse-requires: owning member, assigned trainer
+      parameters:
+        - in: path
+          name: memberId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/files:
+    post:
+      operationId: uploadFile
+      tags: [storage]
+      summary: Upload a private file
+      description: |
+        Phase: mvp. Change: storage. Requires: authenticated. multipart/form-data. Stores via the storage interface. Metadata in files table.
+      x-gympulse-phase: mvp
+      x-gympulse-change: storage
+      x-gympulse-requires: authenticated
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/files/{fileId}:
+    get:
+      operationId: getFileMetadata
+      tags: [storage]
+      summary: Get file metadata
+      description: |
+        Phase: mvp. Change: storage. Requires: authorized gym principal.
+      x-gympulse-phase: mvp
+      x-gympulse-change: storage
+      x-gympulse-requires: authorized gym principal
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+    delete:
+      operationId: deleteFile
+      tags: [storage]
+      summary: Delete a file
+      description: |
+        Phase: mvp. Change: storage. Requires: owner, manager, uploader.
+      x-gympulse-phase: mvp
+      x-gympulse-change: storage
+      x-gympulse-requires: owner, manager, uploader
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/files/{fileId}/content:
+    get:
+      operationId: downloadFile
+      tags: [storage]
+      summary: Download file bytes
+      description: |
+        Phase: mvp. Change: storage. Requires: authorized gym principal. Authenticated download. Not a public URL.
+      x-gympulse-phase: mvp
+      x-gympulse-change: storage
+      x-gympulse-requires: authorized gym principal
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/files/{fileId}/signed-url:
+    post:
+      operationId: createFileSignedUrl
+      tags: [storage]
+      summary: Issue short-lived signed URL
+      description: |
+        Phase: mvp. Change: storage. Requires: authorized gym principal.
+      x-gympulse-phase: mvp
+      x-gympulse-change: storage
+      x-gympulse-requires: authorized gym principal
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+  /v1/reports/active-members:
+    get:
+      operationId: getReportActiveMembers
+      tags: [reports]
+      summary: Active member counts
+      description: |
+        Phase: mvp. Change: reporting. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: reporting
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: as_of
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/reports/churn:
+    get:
+      operationId: getReportChurn
+      tags: [reports]
+      summary: Churn in a period
+      description: |
+        Phase: mvp. Change: reporting. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: reporting
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/reports/revenue:
+    get:
+      operationId: getReportRevenue
+      tags: [reports]
+      summary: Revenue summary
+      description: |
+        Phase: mvp. Change: reporting. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: reporting
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/reports/attendance:
+    get:
+      operationId: getReportAttendance
+      tags: [reports]
+      summary: Attendance summary
+      description: |
+        Phase: mvp. Change: reporting. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: reporting
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/reports/signups:
+    get:
+      operationId: getReportSignups
+      tags: [reports]
+      summary: New member signups
+      description: |
+        Phase: mvp. Change: reporting. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: reporting
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/reports/class-utilization:
+    get:
+      operationId: getReportClassUtilization
+      tags: [reports]
+      summary: Class utilization
+      description: |
+        Phase: mvp. Change: reporting. Requires: owner, manager.
+      x-gympulse-phase: mvp
+      x-gympulse-change: reporting
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/reports/{report}/export:
+    get:
+      operationId: exportReport
+      tags: [reports]
+      summary: Export a report
+      description: |
+        Phase: mvp. Change: reporting. Requires: owner, manager. format=csv or json. Offset pagination allowed for reports.
+      x-gympulse-phase: mvp
+      x-gympulse-change: reporting
+      x-gympulse-requires: owner, manager
+      parameters:
+        - in: path
+          name: report
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: format
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: branch_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List in-app notifications
+      description: |
+        Phase: later. Change: notifications. Requires: authenticated.
+      x-gympulse-phase: later
+      x-gympulse-change: notifications
+      x-gympulse-requires: authenticated
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CursorPage'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/notifications/stream:
+    get:
+      operationId: streamNotifications
+      tags: [notifications]
+      summary: SSE notification stream
+      description: |
+        Phase: later. Change: notifications. Requires: authenticated.
+      x-gympulse-phase: later
+      x-gympulse-change: notifications
+      x-gympulse-requires: authenticated
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/push/subscribe:
+    post:
+      operationId: subscribePush
+      tags: [notifications]
+      summary: Register web-push subscription
+      description: |
+        Phase: later. Change: notifications. Requires: authenticated.
+      x-gympulse-phase: later
+      x-gympulse-change: notifications
+      x-gympulse-requires: authenticated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscribeRequest'
+      responses:
+        "201":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
+          $ref: '#/components/responses/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters: {}
+  responses:
+    Error:
+      description: Standard error envelope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    ReadyResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, not_ready]
+    EchoRequest:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+    EchoResponse:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+    JsonObject:
+      type: object
+      additionalProperties: true
+    CursorPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JsonObject'
+        next_cursor:
+          type:
+            - string
+            - "null"
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+    BootstrapOwnerRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 10
+        gym_name:
+          type: string
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 10
+    PasswordForgotRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    PasswordResetRequest:
+      type: object
+      additionalProperties: false
+      required: [token, new_password]
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          minLength: 10
+    StaffInviteRequest:
+      type: object
+      additionalProperties: false
+      required: [email, roles]
+      properties:
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [owner, manager, receptionist, trainer]
+    InviteAcceptRequest:
+      type: object
+      additionalProperties: false
+      required: [token, password]
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 10
+        name:
+          type: string
+    VerifyConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+    MePatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+    StaffPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+    StaffRolesRequest:
+      type: object
+      additionalProperties: false
+      required: [roles]
+      properties:
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [owner, manager, receptionist, trainer]
+    GymPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        timezone:
+          type: string
+        currency:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        address:
+          type: string
+    BrandingPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        logo_file_id:
+          type: string
+          format: uuid
+        primary_color:
+          type: string
+        public_tagline:
+          type: string
+    BranchCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+    BranchPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+    HoursRequest:
+      type: object
+      additionalProperties: false
+      required: [days]
+      properties:
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/JsonObject'
+    HolidayCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [date, name]
+      properties:
+        date:
+          type: string
+          format: date
+        name:
+          type: string
+    MemberCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [email, name, home_branch_id]
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+        home_branch_id:
+          type: string
+          format: uuid
+        existing_user_id:
+          type: string
+          format: uuid
+        emergency_contact_name:
+          type: string
+        emergency_contact_phone:
+          type: string
+        member_code:
+          type: string
+    MemberPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        home_branch_id:
+          type: string
+          format: uuid
+        emergency_contact_name:
+          type: string
+        emergency_contact_phone:
+          type: string
+    NoteCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body:
+          type: string
+    PlanCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [name, price_minor, period]
+      properties:
+        name:
+          type: string
+        price_minor:
+          type: integer
+        period:
+          type: string
+        branch_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    PlanPatchRequest:
+      type: object
+      additionalProperties: true
+    MembershipAssignRequest:
+      type: object
+      additionalProperties: false
+      required: [plan_id, start_date]
+      properties:
+        plan_id:
+          type: string
+          format: uuid
+        start_date:
+          type: string
+          format: date
+    MembershipFreezeRequest:
+      type: object
+      additionalProperties: false
+      required: [start_date, end_date]
+      properties:
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        reason:
+          type: string
+    MembershipUpgradeRequest:
+      type: object
+      additionalProperties: false
+      required: [plan_id]
+      properties:
+        plan_id:
+          type: string
+          format: uuid
+        effective_date:
+          type: string
+          format: date
+    ReasonRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+    LeadCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [name, contact]
+      properties:
+        name:
+          type: string
+        contact:
+          type: string
+        message:
+          type: string
+        honeypot:
+          type: string
+        captcha_token:
+          type: string
+    LeadPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [open, contacted, dismissed, converted]
+    LeadConvertRequest:
+      type: object
+      additionalProperties: false
+      required: [home_branch_id]
+      properties:
+        home_branch_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+    CheckinRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+        member_code:
+          type: string
+        method:
+          type: string
+          enum: [qr, code_fallback]
+        branch_id:
+          type: string
+          format: uuid
+        photo_confirmed:
+          type: boolean
+    StaffCheckinRequest:
+      type: object
+      additionalProperties: false
+      required: [member_id, branch_id]
+      properties:
+        member_id:
+          type: string
+          format: uuid
+        branch_id:
+          type: string
+          format: uuid
+    CheckinCorrectionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        void:
+          type: boolean
+        branch_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    DiscountRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        amount_minor:
+          type: integer
+        percent:
+          type: integer
+        reason:
+          type: string
+    PaymentCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [amount_minor, method]
+      properties:
+        amount_minor:
+          type: integer
+        method:
+          type: string
+          enum: [cash, bank_transfer, mobile_money]
+        note:
+          type: string
+    RefundRequest:
+      type: object
+      additionalProperties: false
+      required: [amount_minor]
+      properties:
+        amount_minor:
+          type: integer
+        reason:
+          type: string
+    PromoCodeCreateRequest:
+      type: object
+      additionalProperties: true
+    ClassTypeCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        default_capacity:
+          type: integer
+    ClassTypePatchRequest:
+      type: object
+      additionalProperties: true
+    ClassScheduleCreateRequest:
+      type: object
+      additionalProperties: true
+    ClassSchedulePatchRequest:
+      type: object
+      additionalProperties: true
+    SessionCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [name, branch_id, starts_at, ends_at, capacity]
+      properties:
+        name:
+          type: string
+        class_type_id:
+          type: string
+          format: uuid
+        branch_id:
+          type: string
+          format: uuid
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+        trainer_id:
+          type: string
+          format: uuid
+    SessionPatchRequest:
+      type: object
+      additionalProperties: true
+    BookingCreateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        member_id:
+          type: string
+          format: uuid
+    ClassAttendanceRequest:
+      type: object
+      additionalProperties: false
+      required: [member_ids]
+      properties:
+        member_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+    TrainerProfilePatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        bio:
+          type: string
+        specialties:
+          type: array
+          items:
+            type: string
+    AssignClientRequest:
+      type: object
+      additionalProperties: false
+      required: [member_id]
+      properties:
+        member_id:
+          type: string
+          format: uuid
+    AvailabilityRequest:
+      type: object
+      additionalProperties: true
+    PtSessionCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [trainer_id, member_id, starts_at, ends_at]
+      properties:
+        trainer_id:
+          type: string
+          format: uuid
+        member_id:
+          type: string
+          format: uuid
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        branch_id:
+          type: string
+          format: uuid
+    PtSessionPatchRequest:
+      type: object
+      additionalProperties: true
+    ExerciseCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+        muscle_group:
+          type: string
+        instructions:
+          type: string
+    ExercisePatchRequest:
+      type: object
+      additionalProperties: true
+    WorkoutPlanCreateRequest:
+      type: object
+      additionalProperties: true
+    WorkoutPlanPatchRequest:
+      type: object
+      additionalProperties: true
+    AssignWorkoutPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [workout_plan_id]
+      properties:
+        workout_plan_id:
+          type: string
+          format: uuid
+    WorkoutLogCreateRequest:
+      type: object
+      additionalProperties: true
+    WorkoutLogPatchRequest:
+      type: object
+      additionalProperties: true
+    MeasurementCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [recorded_on]
+      properties:
+        recorded_on:
+          type: string
+          format: date
+        weight_g:
+          type: integer
+        body_fat_bp:
+          type: integer
+        notes:
+          type: string
+    GoalsRequest:
+      type: object
+      additionalProperties: true
+    PushSubscribeRequest:
+      type: object
+      additionalProperties: true
+
