@@ -1,0 +1,21 @@
+[Unit]
+Description=GymPulse API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=gympulse
+Group=gympulse
+WorkingDirectory=/opt/gympulse
+EnvironmentFile=/etc/gympulse.env
+ExecStart=/opt/gympulse/bin/gympulse
+Restart=on-failure
+RestartSec=5
+
+# /etc/gympulse.env must include DATABASE_URL (direct or session-mode
+# Postgres 16+). Do not point it at a transaction-mode pooler or Supabase.
+# Leave AUTO_MIGRATE unset or false; run `gympulse migrate up` before start.
+
+[Install]
+WantedBy=multi-user.target
