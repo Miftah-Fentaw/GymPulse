@@ -1,15 +1,14 @@
 ## Why
 
-The server has a database but no identity. Every later capability needs password login, JWT access plus refresh, and Go-enforced roles.
+The server has a database but no identity. Later capabilities need password login, 15-minute JWTs, rotating opaque refresh tokens with family reuse detection, and Go-enforced capabilities.
 
 ## What Changes
 
-- `users` (or equivalent) table in schema `gympulse`: email, password hash, role, gym_id, status.
-- `POST /v1/auth/login`, `POST /v1/auth/refresh`, `POST /v1/auth/logout`.
-- Short-lived JWT access tokens; rotating refresh tokens stored hashed server-side.
-- Refresh via httpOnly Secure cookie and via JSON body.
-- Middleware that loads the principal and enforces roles. Seed an initial owner (env or first-user) for a fresh gym.
-- No Supabase Auth.
+- `users`, `user_staff_roles`, `refresh_tokens` (hashed, family id). UUIDv7 ids.
+- argon2id; JWT 15 min via golang-jwt/jwt/v5; opaque rotating refresh; reuse revokes family.
+- Login/refresh/logout in `openapi.yaml`; oapi-codegen handlers; cookie on `api.` for `admin.` and `app.`.
+- CORS + CSRF per design (Caddy subdomain layout).
+- First-owner bootstrap.
 
 ## Capabilities
 
@@ -19,11 +18,10 @@ The server has a database but no identity. Every later capability needs password
 
 ### Modified Capabilities
 
-- `auth-and-roles`: Implement login, tokens, roles, logout/revocation.
+- `auth-and-roles`: Login, tokens, multi-capability accounts, logout, cookie/CORS/CSRF.
 
 ## Impact
 
-- `server/migrations/0002_auth.sql` (name may vary)
-- `server/internal/auth/`
-- JWT secret and token TTLs in env / `.env.example`
-- Integration tests on plain Postgres
+- Auth migration, `server/internal/auth/`
+- openapi.yaml, generate
+- Env: AUTH_JWT_SECRET, CORS origins, cookie flags

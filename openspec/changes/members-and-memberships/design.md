@@ -1,46 +1,49 @@
 ## Context
 
-See proposal.md — Why. Depends on auth-and-roles. Members are gym-scoped; a member login is a `users` row with role `member` plus a profile.
+See proposal.md — Why. Depends on auth-and-roles and storage. Members 1:1 with users. Leads are gym-scoped; public POST is rate-limited and does not set auth cookies.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- CRUD-ish member profiles for staff, own-profile for members
-- Plans and membership lifecycle including freeze/upgrade/cancel/expiry
-- A single function/service other domains call: `MembershipGrantsAccess(memberID, at time)`
+- Member CRUD, attach profile to existing staff user, plans/memberships, MembershipGrantsAccess, leads capture/convert, profile photo
+- UUIDv7 ids from Go
 
 **Non-Goals:**
-- Payments (invoices may be stubbed or omitted until billing-payments)
+- Payments (until billing-payments)
 - Check-in QR
-- Frontend
+- Landing UI (only the API)
+- Progress photos
 
 ## Decisions
 
-### Decision 1: members table 1:1 with users
+### Decision 1: members 1:1 with users
 
-`gympulse.members` has `user_id` unique, `branch_id`, status, extra profile fields. Creating a member creates a user with role member (temporary password or invite later; for MVP staff set a password).
+`members.user_id` unique. Creating a member creates a user with no staff roles, or links an existing user in the same gym.
 
-### Decision 2: Access helper in the memberships service
+### Decision 2: Access helper
 
-Check-in and booking must not reimplement expiry math. Export one method used by later packages.
+Export `MembershipGrantsAccess(memberID, at time)` for check-in and booking.
 
-### Decision 3: One access-granting membership
+### Decision 3: Money as integer minor units
 
-Enforce in service, not only in UI. Unique partial index if SQL can express "one current membership".
+Plan price integer cents plus currency on gym or plan.
 
-### Decision 4: Money as integer minor units
+### Decision 4: Public leads
 
-Store plan price as integer cents (or gym currency minor units) plus `currency` code on gym or plan. Avoid float.
+`POST /v1/public/leads` identifies gym via config (single gym per deploy) or `gym_slug` query. Rate-limit per IP. No CORS credentials.
+
+### Decision 5: Profile photo
+
+Use storage interface + files row; `members.photo_file_id`.
 
 ## Risks / Trade-offs
 
-- [Creating users when creating members] → password bootstrap must not email yet (no-op). Staff-set password is acceptable for MVP.
-- [Timezone] → store membership dates as date + gym timezone from gyms row; compare in UTC internally.
+- [Public POST spam] → rate limit; captcha later behind an interface.
 
 ## Migration Plan
 
-Additive SQL. Down drops new tables.
+Additive. Down drops new tables.
 
 ## Open Questions
 
-None. Invite-by-email waits for notifications.
+None.

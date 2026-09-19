@@ -1,30 +1,32 @@
 ## Why
 
-The repository has an empty Go module and no runnable API. We need a small, shippable server skeleton—config, logs, health, and a pooler-aware database pool—before any schema or domain work.
+The repository has an empty Go module and no runnable API. We need a shippable skeleton: config, JSON logs, health, pgx, OpenAPI codegen, Makefile, and a pnpm workspace—before schema or domain work.
 
 ## What Changes
 
-- Replace the placeholder `server/main.go` with `cmd/gympulse` (serve by default).
-- Load 12-factor env config; add `.env.example` for the variables this slice uses.
-- Structured logging via `log/slog`.
-- HTTP server with chi: `GET /health` (liveness) and `GET /ready` (database ping).
-- pgx pool wired from `DATABASE_URL`, using the simple protocol so a transaction pooler is safe.
-- No migrations, no domain tables, no auth in this change.
+- `cmd/gympulse` entrypoint; chi; `GET /health` and `GET /ready`.
+- Typed env config (caarlos0/env), fail-fast; slog JSON with request IDs.
+- pgx pool from `DATABASE_URL` (pgx defaults).
+- `openapi.yaml` (OpenAPI 3.1) skeleton including health/ready; oapi-codegen chi strict handlers; request validation middleware.
+- `packages/api-client` generation (openapi-typescript + openapi-fetch).
+- Root Makefile (`dev`, `test`, `lint`, `generate`, `migrate-*`, `build`) and pnpm workspace scaffolding for admin, app, landing, packages/api-client. No frontend feature screens.
+- CI check: generate is clean (no diff).
+- `.env.example` for variables this slice uses.
 
 ## Capabilities
 
 ### New Capabilities
 
-<!-- none — deployment-portability already exists as a main spec -->
+<!-- none -->
 
 ### Modified Capabilities
 
-- `deployment-portability`: Make health, env config, and pooler-aware pgx concrete in the running server.
+- `deployment`: Health, typed env config, standard pgx.
+- `http-api`: OpenAPI skeleton, codegen pipeline, validation middleware, shared TS client.
 
 ## Impact
 
-- `server/cmd/gympulse/`: new entrypoint
-- `server/internal/config/`, `server/internal/http/`, `server/internal/db/`
-- `server/go.mod`: chi, pgx
-- Root or `server/.env.example` (server variables only)
-- Placeholder `server/main.go` removed or reduced to a pointer
+- `server/cmd/gympulse/`, `internal/config`, `internal/http`, `internal/db`
+- `openapi.yaml`, generate scripts, `packages/api-client`
+- `Makefile`, `pnpm-workspace.yaml`, placeholder packages
+- CI workflow for generate drift

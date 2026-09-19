@@ -1,28 +1,26 @@
-## Purpose
+## MODIFIED Requirements
 
-Public website for a single deployed gym: plans, schedule, contact, and trial signup, with no direct database or Supabase access.
+### Requirement: SEO-oriented delivery
+The landing site SHALL be delivered as Astro static or hybrid HTML with React islands only for live parts (trial form, live schedule). Plans and marketing content MUST be crawlable without a client-only SPA shell.
 
-## ADDED Requirements
+#### Scenario: Crawler sees plans
+- **WHEN** an unauthenticated crawler requests the plans URL
+- **THEN** the HTML response includes plan names without requiring JavaScript to populate them
 
 ### Requirement: Public pages
 The landing site SHALL show gym marketing content: home, membership plans, class schedule, and contact. Unauthenticated visitors MUST be able to load these pages.
 
-#### Scenario: Visitor views plans
-- **WHEN** a visitor opens the plans page
-- **THEN** they see plans the server marks as public for that gym
-- **AND** they are not asked to log in
-
 #### Scenario: Visitor views schedule
 - **WHEN** a visitor opens the schedule page
 - **THEN** they see upcoming public sessions for the gym
-- **AND** they cannot book without becoming a member (booking stays in the PWA or a later CTA)
+- **AND** they cannot complete a member booking on landing (CTA may link to the PWA)
 
 ### Requirement: Trial or contact signup
-The site SHALL submit contact and trial requests to the server. The server MUST persist the lead. The landing app MUST NOT write to Postgres itself.
+The site SHALL submit contact and trial requests to the server leads API. The landing app MUST NOT write to Postgres itself.
 
 #### Scenario: Trial form
 - **WHEN** a visitor submits a valid trial/contact form
-- **THEN** the server stores the request
+- **THEN** the server stores a lead
 - **AND** the visitor sees a success message
 
 #### Scenario: Invalid form
@@ -31,9 +29,16 @@ The site SHALL submit contact and trial requests to the server. The server MUST 
 - **AND** the UI shows a validation error
 
 ### Requirement: No privileged API
-The landing site MUST NOT ship staff tokens, service keys, or a Supabase anon key. Public API endpoints SHALL be read-only except for the documented signup/contact POST.
+The landing site MUST NOT ship staff tokens or use credentialed auth cookies. Public API endpoints SHALL be read-only except for the documented lead POST.
 
 #### Scenario: Bundle inspection
 - **WHEN** the landing app is built
 - **THEN** required env is the public API base URL
-- **AND** there is no Supabase client dependency
+- **AND** auth refresh cookies are not used on this origin
+
+### Requirement: Localized UI
+All user-visible strings SHALL come from i18n catalogs. English is the default locale. Source MUST NOT hard-code UI sentences outside catalogs.
+
+#### Scenario: English default
+- **WHEN** a visitor opens landing with no locale override
+- **THEN** visible copy comes from the English catalog

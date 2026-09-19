@@ -1,10 +1,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: Assign trainer
-Owner and manager SHALL assign one or more trainers to a member (or a member to a trainer). Assignments MUST be gym-scoped. Receptionists MAY view assignments but SHALL NOT change them unless a later change says otherwise.
+Owner and manager SHALL assign one or more users who have the trainer staff role to a member (or a member to a trainer). Assignments MUST be gym-scoped. Receptionists MAY view assignments but SHALL NOT change them unless a later change says otherwise.
 
 #### Scenario: Manager assigns a trainer
-- **WHEN** a manager assigns a trainer user to a member of the same gym
+- **WHEN** a manager assigns a trainer-staff user to a member of the same gym
 - **THEN** the assignment is stored
 - **AND** the trainer sees that member in their client list
 

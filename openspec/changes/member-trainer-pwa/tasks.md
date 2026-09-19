@@ -1,16 +1,15 @@
 ## 1. PWA foundation
 
-- [ ] 1.1 Add router, pinia, tailwind, vite-plugin-pwa, `VITE_API_URL` client — verify: `npm run build` in `app/` succeeds and a manifest is emitted
-- [ ] 1.2 Login, refresh (JSON body), logout; role-based redirect — verify: member vs trainer land on different homes; staff role is refused or sent away
+- [ ] 1.1 React + Vite + TypeScript app using packages/api-client, TanStack Router/Query, Tailwind, shadcn, react-hook-form + zod, react-i18next — verify: `pnpm --filter app build` succeeds
+- [ ] 1.2 vite-plugin-pwa/Workbox: precache shell; cache last check-in QR; `/v1` network-first — verify: Workbox config; offline QR scenario documented/tested
+- [ ] 1.3 Login, cookie refresh, view switch for member/trainer/combined; staff-only refused — verify: three account shapes
 
-## 2. Member flows
+## 2. Member and trainer flows
 
-- [ ] 2.1 Membership status, attendance history, class book/cancel, workout log — verify: each against a running API (or e2e) for one happy path
+- [ ] 2.1 Membership, attendance, class book/cancel, workout log, online QR refresh every 60s — verify: happy paths against API
+- [ ] 2.2 Trainer clients and workouts for assigned only — verify: unassigned denied
+- [ ] 2.3 No hard-coded UI strings outside catalogs — verify: review/locales
 
-## 3. Trainer flows
+## 3. Integration verification
 
-- [ ] 3.1 Client list and client workout history for assigned members only — verify: unassigned client route is empty/denied
-
-## 4. Integration verification
-
-- [ ] 4.1 No Supabase client; SW does not cache `/v1` JSON as a source of truth — verify: `rg supabase app/src` empty; SW config network-first for API
+- [ ] 3.1 Manifest emitted; English default — verify: build output

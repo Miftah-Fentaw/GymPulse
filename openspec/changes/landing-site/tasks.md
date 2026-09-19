@@ -1,14 +1,13 @@
 ## 1. Public API
 
-- [ ] 1.1 Add public GET plans and schedule (published only) and POST lead; rate-limit POST — verify: unauthenticated GET works; unpublished plans omitted; POST persists a row in `gympulse`
-- [ ] 1.2 Migration for `leads` with RLS enabled and no policies — verify: migrate up
+- [ ] 1.1 Unauthenticated GET published plans and schedule; POST lead credential-free; update `openapi.yaml` and `make generate` if new — verify: curl without cookies; unpublished omitted; generate clean
 
-## 2. Landing UI
+## 2. Astro site
 
-- [ ] 2.1 Home, plans, schedule, contact/trial pages using `VITE_API_URL` — verify: `npm run build` in `landing/` succeeds
-- [ ] 2.2 Trial form success and validation errors — verify: empty submit does not POST successfully; valid submit shows success
-- [ ] 2.3 CTA to PWA/admin as links, not embedded staff UI — verify: no login-as-staff on landing
+- [ ] 2.1 Astro static/hybrid with React islands, packages/api-client, i18n English catalog — verify: `pnpm --filter landing build` succeeds
+- [ ] 2.2 Plans HTML contains plan names without client-only rendering — verify: curl built/SSR page includes a plan name
+- [ ] 2.3 Trial form success/validation; no refresh cookie — verify: empty submit does not store; valid submit succeeds
 
 ## 3. Integration verification
 
-- [ ] 3.1 `rg supabase landing/src` is empty; env sample is API URL only — verify: command/output in review
+- [ ] 3.1 Landing env is public API origin only — verify: `.env.example`

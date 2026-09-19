@@ -1,13 +1,14 @@
 ## Why
 
-Front desk needs a reliable way to record who entered the gym and to look up attendance. QR plus staff-assisted check-in unblocks daily operations.
+Front desk needs reliable check-in. Members present a 60-second signed QR while online; offline they show a cached static code that staff match to a photo. Attendance must be idempotent.
 
 ## What Changes
 
-- Attendance events: member, gym, branch, timestamp, method (`qr` | `staff`).
-- QR (or code) issued per member, validated server-side, refused when membership does not grant access.
-- Staff check-in by member search.
-- History APIs: staff by gym/branch/day; members see only their own.
+- Short-lived signed token (60s) plus stable member code; PWA refreshes while online.
+- Offline fallback: Workbox-cached last QR/code; desk verifies code + photo.
+- Staff search check-in; idempotent window (default 15 minutes).
+- History APIs; gym IANA timezone for "today".
+- openapi.yaml updates.
 
 ## Capabilities
 
@@ -17,10 +18,9 @@ Front desk needs a reliable way to record who entered the gym and to look up att
 
 ### Modified Capabilities
 
-- `checkin-attendance`: QR check-in, staff-assisted check-in, attendance history.
+- `checkin-attendance`: Signed QR, offline fallback, staff check-in, idempotent attendance, history.
 
 ## Impact
 
-- Migration for attendance and QR secrets/tokens
-- `server/internal/checkin/`
-- `/v1/checkins` (and QR issue/validate)
+- attendance migration, `server/internal/checkin/`
+- PWA cache behavior specified here; implemented in member-trainer-pwa

@@ -1,50 +1,45 @@
 ## Context
 
-See proposal.md — Why. Depends on `bootstrap-server` (pgx pool, env, cmd entrypoint). Goose is the chosen migrator (library, SQL-only, embed.FS, advisory locks, table name configurable).
+See proposal.md — Why. Depends on bootstrap-server. Goose Provider + session locker. Default schema. UUIDv7 in Go. testcontainers-go for DB tests.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Embedded goose runner, CLI, AUTO_MIGRATE, schema `gympulse`, RLS-on-no-policies, gyms/branches, compose profiles, README DSN notes
-- Tests that apply migrations on plain Postgres
+- Embedded migrate, CLI, AUTO_MIGRATE default false, gyms/branches with timezone+currency, compose with Caddy and backups
 
 **Non-Goals:**
-- users/auth tables (next change)
-- Generating schema.sql in CI unless cheap; a documented make/script is enough
-- Live Supabase in CI (document how; test pooler locally with PgBouncer or a second DSN when available)
+- Auth tables, frontend apps (Caddy may serve placeholders)
 
 ## Decisions
 
-### Decision 1: goose library, SQL only
+### Decision 1: goose Provider + session locker
 
-Use `pressly/goose/v3` (or current goose v3 module) with `embed.FS`. Set table to `gympulse.goose_db_version` (create schema first in `0001`). Do not use Go migration functions for DDL.
+SQL-only. Version table `goose_db_version` in public.
 
-### Decision 2: Session URL for migrate
+### Decision 2: Forward-only in production
 
-`migrate.Run` opens a dedicated `pgx` connection (or `database/sql` + pgx stdlib) from `MIGRATION_DATABASE_URL` or `DATABASE_URL` with a session-safe config. Do not reuse the request pool if that pool is simple-protocol on a transaction pooler—migrations need session + advisory locks. Goose's Postgres dialect uses advisory locks; that requires a real session.
+`migrate down` works locally. README: prod rollback = restore dump.
 
-### Decision 3: Baseline tables only gyms and branches
+### Decision 3: Compose services
 
-Keep 0001 small. Auth users land in `auth-and-roles`. Enable RLS immediately on these two tables so the pattern is copy-paste for later migrations (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`).
+`server`, `postgres:16`, `caddy`, `backup` (cron/`ofelia`/simple loop). Caddyfile: `api.` reverse_proxy server; `admin.`, `app.`, root serve `./dist-*` or placeholders.
 
-### Decision 4: Compose at repo root
+### Decision 4: Gym settings on gyms
 
-`docker-compose.yml` with profiles `local-db` (postgres + server) and `external-db` (server only). Postgres image official, port 5432, volume, `POSTGRES_DB=gympulse`.
+`timezone` IANA (e.g. `Africa/Nairobi`), `currency` char(3). Money later uses gym currency.
 
-### Decision 5: Search path
+### Decision 5: testcontainers-go
 
-Set `search_path` to `gympulse` for the server role in migration or connection (optional `SET search_path`). Prefer fully qualified `gympulse.table` in SQL and sqlc later so we never depend on `public`.
+Migration tests use a real Postgres 16 container. No DB mocks.
 
 ## Risks / Trade-offs
 
-- [goose vs golang-migrate] → goose wins for embed + lock + table name; revisit only if we need cross-language migrate CLI.
-- [Supabase CI] → may be unavailable; gate an optional test with `SUPABASE_TEST_URL`.
-- [down migrations] → `0001` should have a matching down that drops schema `gympulse` CASCADE only in dev; document that prod down is dangerous.
+- [Caddy HTTPS locally] → HTTP or internal CA in dev; automatic HTTPS in production.
 
 ## Migration Plan
 
-Apply 0001 to empty DBs only at this stage. Rollback: `migrate down` in dev.
+0001 on empty DBs. Down local-only.
 
 ## Open Questions
 
-None. Live Supabase verification is manual using the README DSN unless a secret is provided later.
+None.

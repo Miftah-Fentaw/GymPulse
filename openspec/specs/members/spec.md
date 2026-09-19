@@ -1,21 +1,27 @@
 ## Purpose
 
-Member directory and profiles for a gym, always scoped to a gym and branch so multi-branch can be enabled later.
+Member directory and profiles for a gym, always scoped to a gym and branch. A member profile is attached to a user account that may also hold staff roles.
 
 ## Requirements
 
 ### Requirement: Member profiles
-The system SHALL store a member profile with identity and contact fields needed to check in, bill, and contact the person. Each member MUST belong to exactly one gym and MUST have a home branch.
+The system SHALL store a member profile with identity and contact fields needed to check in, bill, and contact the person. Each member MUST belong to exactly one gym, MUST have a home branch, and MUST be linked to a user account.
 
 #### Scenario: Staff create a member
 - **WHEN** an owner, manager, or receptionist submits a valid new member profile
 - **THEN** the member is stored under the current gym and a chosen branch
+- **AND** a user account exists (new or existing) with that member profile
 - **AND** the member can be retrieved by staff of that gym
 
 #### Scenario: Duplicate contact
 - **WHEN** staff create a member with an email that already exists in the same gym
 - **THEN** the server rejects the create
 - **AND** no second member row is written
+
+#### Scenario: Existing staff becomes a member
+- **WHEN** staff attach a member profile to an existing user in the same gym who has none
+- **THEN** that account has both its staff roles and a member profile
+- **AND** login still uses the same email and password
 
 ### Requirement: Gym and branch scope
 Member reads and writes SHALL be scoped by gym_id. Branch-local staff views MAY filter by branch_id. A client MUST NOT read or mutate members of another gym by supplying a different gym id.

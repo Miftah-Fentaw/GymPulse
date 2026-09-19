@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md — Why. Depends on auth-and-roles and members. Trainers are `users.role = trainer`.
+See proposal.md — Why. Depends on auth-and-roles and members. Trainers are users with the trainer staff role (and may also have a member profile).
 
 ## Goals / Non-Goals
 

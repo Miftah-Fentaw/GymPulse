@@ -17,6 +17,7 @@ Members and their coaches need a place to record workouts and see history. This 
 ### Modified Capabilities
 
 - `workouts-progress`: Member logs, progress, trainer access.
+- `storage`: Progress photos for members and assigned trainers.
 
 ## Impact
 

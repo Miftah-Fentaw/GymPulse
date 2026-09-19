@@ -1,18 +1,24 @@
 ## 1. Schema
 
-- [ ] 1.1 Migration for `attendance_events` (member_id, gym_id, branch_id, method, occurred_at) with RLS — verify: migrate up; table in `gympulse`
-- [ ] 1.2 Member QR/token column or table — verify: sqlc generate succeeds
+- [ ] 1.1 `attendance_events` and stable `member_code`; UUID PKs; timestamptz — verify: testcontainers migrate up
+- [ ] 1.2 sqlc queries — verify: `make generate` includes sqlc
 
-## 2. Check-in
+## 2. Signed QR
 
-- [ ] 2.1 Staff/kiosk QR validate uses `MembershipGrantsAccess`; success writes event method `qr` — verify: tests for current vs expired/frozen
-- [ ] 2.2 Staff search check-in writes method `staff` — verify: receptionist can, member role cannot check others in
-- [ ] 2.3 Duplicate window returns the existing event — verify: two check-ins inside the window yield one row
+- [ ] 2.1 Issue 60s signed token + member code; staff consume uses MembershipGrantsAccess — verify: valid token checks in; expired token rejected; frozen membership rejected
+- [ ] 2.2 Document fallback in README/API notes: cached code + photo, weaker than signed token — verify: docs mention replay risk
 
-## 3. History
+## 3. Staff and idempotency
 
-- [ ] 3.1 Staff list by day/branch; member list own only — verify: HTTP tests for scope
+- [ ] 3.1 Staff search check-in method `staff` — verify: member-only cannot check others in
+- [ ] 3.2 Double check-in within 15 minutes returns the same event — verify: one row
+- [ ] 3.3 Code+photo fallback records `code_fallback` or `staff` — verify: HTTP test
 
-## 4. Integration verification
+## 4. History and OpenAPI
 
-- [ ] 4.1 Create member with current membership, check in, list today — verify: `go test` against Postgres
+- [ ] 4.1 History by gym/branch/day using gym timezone; member sees own only — verify: tests
+- [ ] 4.2 Update `openapi.yaml` and `make generate` — verify: no generate diff
+
+## 5. Integration verification
+
+- [ ] 5.1 Member with current membership: issue QR, consume, list today — verify: `go test` testcontainers Postgres 16

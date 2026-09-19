@@ -6,6 +6,7 @@ See proposal.md — Why. Depends on trainers-clients for trainer access.
 
 **Goals:**
 - Persist logs (date, notes, JSONB exercises or text), list, trainer path via `CanTrainerAccessMember`
+- Progress photos through the storage interface
 
 **Non-Goals:**
 - Fancy analytics, PR charts, public sharing

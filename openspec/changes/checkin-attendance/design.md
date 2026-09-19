@@ -1,40 +1,46 @@
 ## Context
 
-See proposal.md — Why. Depends on members-and-memberships (`MembershipGrantsAccess`).
+See proposal.md — Why. Depends on members-and-memberships (`MembershipGrantsAccess`) and storage (photo for fallback). PWA cache is implemented in member-trainer-pwa; this change ships the server token API and documents the fallback.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Server-validated QR (or opaque code), staff check-in, history
-- Idempotency window so double-scan the same minute does not create two visits (define a short duplicate window)
+- 60-second signed QR token + member code
+- Idempotent 15-minute window
+- Staff search check-in and code+photo fallback
+- OpenAPI + testcontainers
 
 **Non-Goals:**
-- Hardware turnstiles, native camera app (PWA later)
-- Realtime dashboard (notifications change)
+- Hardware turnstiles
+- Implementing Workbox (PWA change)
 
 ## Decisions
 
-### Decision 1: Opaque member check-in token
+### Decision 1: 60-second HMAC/JWT token
 
-Store a random secret per member (or signed JWT with member id + gym + expiry). Prefer HMAC/JWT issued by the server so staff kiosks do not hold a DB of codes. Rotate by re-issuing.
+Server issues `GET /v1/me/checkin-qr` (auth member) with token (member_id, gym_id, exp=now+60s) plus the stable `member_code`. PWA polls/refreshes while online. Staff `POST /v1/checkins/qr` with the token.
 
-### Decision 2: Duplicate window
+### Decision 2: Offline fallback (explicit trade-off)
 
-If the same member checks in at the same branch within N minutes (e.g. 15), return the existing event (200/OK) rather than inserting a second row. Document N in config.
+Workbox caches the last QR image/code. Offline, the signed token is stale. Desk looks up `member_code`, compares profile photo, records `code_fallback` or `staff`. **Trade-off:** a photographed static code can be replayed; photo match is the human control. Prefer the signed path whenever the phone is online.
 
-### Decision 3: Kiosk auth
+### Decision 3: Idempotency window
 
-QR submit endpoint requires a staff (or dedicated kiosk) access token so a stolen QR cannot be replayed from the public internet without staff context. Member-self check-in at the door can wait; MVP is staff/kiosk.
+Default 15 minutes, same member + branch. Return existing row.
+
+### Decision 4: Kiosk is staff-authenticated
+
+QR consume endpoint requires receptionist/manager/owner (or kiosk staff user).
 
 ## Risks / Trade-offs
 
-- [Printed QR leakage] → codes should expire or rotate; staff-assisted path always available.
-- [Timezone for "today"] → use gym timezone.
+- [Static code replay] → documented; photo required at desk.
+- [Clock skew] → small leeway (e.g. 5s) on exp.
 
 ## Migration Plan
 
-Additive attendance table. Down drops it.
+Additive attendance + member_code. Down local-only.
 
 ## Open Questions
 
-None. Self-scan from PWA can be a later additive endpoint.
+None.

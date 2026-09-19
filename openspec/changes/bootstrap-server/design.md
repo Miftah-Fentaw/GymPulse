@@ -1,52 +1,49 @@
 ## Context
 
-See proposal.md — Why. `server/` is an empty `gympulse-server` module (`go 1.26`) and `main.go`. OpenSpec and architecture rules live at the repo root.
+See proposal.md — Why. Empty `gympulse-server` module. PostgreSQL 16 via DATABASE_URL. OpenAPI is the HTTP contract from day one.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- A process that boots from env, logs, serves health/ready, and holds a pgx pool
-- Safe by default on a transaction pooler
-- Layout that later domains can plug into (`internal/<domain>`)
+- Boot from typed env, JSON logs + request ID, health/ready, pgx pool
+- openapi.yaml skeleton + oapi-codegen + TS client + Makefile + pnpm workspace
+- testcontainers-ready layout (DB tests land with migrations)
 
 **Non-Goals:**
-- Migrations, schema, goose, AUTO_MIGRATE
-- Auth, JWT, any domain API
-- docker-compose (next change)
-- Frontends
+- Domain tables, goose, compose/Caddy (database-migrations)
+- Auth, frontend screens
 
 ## Decisions
 
-### Decision 1: chi, not gin or stdlib-only
+### Decision 1: chi + oapi-codegen strict
 
-chi stays on `net/http`, composes middleware explicitly, and does not pull an ORM or validator stack. Handlers stay ordinary `http.Handler`s.
+chi matches oapi-codegen's chi server. Strict handlers keep spec and code aligned. Validation middleware rejects spec-invalid requests before domain logic.
 
-### Decision 2: pgxpool with simple protocol
+### Decision 2: caarlos0/env
 
-Set `DefaultQueryExecMode` to `QueryExecModeSimpleProtocol` (or disable prepared statement cache) on the runtime pool so PgBouncer transaction mode and Supabase port 6543 work. Do not run advisory locks on this pool.
+Typed struct, required tags, fail-fast. No Viper.
 
-### Decision 3: `/health` vs `/ready`
+### Decision 3: slog JSON + request ID
 
-Liveness is process-up; readiness is DB ping. Split endpoints so an orchestrator can restart vs wait. Both are unauthenticated.
+Middleware assigns a request ID (incoming header or generated UUIDv7) and logs JSON. `/health` and `/ready` stay unauthenticated.
 
-### Decision 4: `cmd/gympulse` as the only main
+### Decision 4: pnpm workspace now, apps later
 
-Keep a single binary. `serve` is the default action. `migrate` is added in the next change as a subcommand on the same binary (flag or `os.Args`—prefer a small stdlib/cobra-free switch unless cobra is already justified). Prefer a tiny `switch` on `os.Args` over Cobra for two commands.
+Scaffold `admin`, `app`, `landing`, `packages/api-client` package.json files so generate has a home. Do not replace Vue HelloWorld with React screens yet—that is admin-app-core / PWA / landing changes. Workspace + generate must work.
 
-### Decision 5: Config package
+### Decision 5: Makefile at repo root
 
-Plain env with `os.Getenv` and documented defaults (`HTTP_ADDR=:8080`, `LOG_LEVEL=info`). Fail fast on missing `DATABASE_URL`. Do not use Viper.
+`make generate` runs sqlc (no-op until queries exist), oapi-codegen, and openapi-typescript. `migrate-*` can error with a message until database-migrations lands, or be thin wrappers.
 
 ## Risks / Trade-offs
 
-- [Empty module path `gympulse-server`] → Fine for now; rename only if we publish a module.
-- [Ready check on pooler] → A ping (`SELECT 1`) is enough; avoid prepared statements.
-- [No compose yet] → Local `DATABASE_URL` must point at an already running Postgres for `/ready` to pass.
+- [Empty sqlc] → generate skips sqlc until queries/ exist.
+- [Compose not in this slice] → `/ready` needs an external Postgres 16 for a green ping.
 
 ## Migration Plan
 
-None. Additive skeleton. Rollback is revert the change.
+None.
 
 ## Open Questions
 
-None for this slice. Compose profiles wait for `database-migrations`.
+None.

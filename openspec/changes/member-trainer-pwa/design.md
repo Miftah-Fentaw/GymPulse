@@ -1,31 +1,29 @@
 ## Context
 
-See proposal.md — Why. `app/` is a Vue 3 Vite scaffold. Apply after server APIs and preferably after admin-app patterns (shared fetch ideas can be copied, not a monorepo package unless we add one later).
+See proposal.md — Why. React is decided. Check-in token API already exists. Cookies for `app.` → `api.`.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- vite-plugin-pwa, login, member and trainer routes, API client, installability
-- Refresh token in memory/body
+- React PWA, Workbox shell + last QR, view switch, i18n
+- Refresh 60s QR while online; offline shows cached code only
 
 **Non-Goals:**
-- Native iOS/Android wrappers
-- Staff features
-- Real web-push until notifications change is applied (register UI can wait)
+- Native apps, staff tools, web-push (notifications later)
 
 ## Decisions
 
-### Decision 1: Same Vue stack as admin
+### Decision 1: Same React stack as admin
 
-Avoid React/Next. Add vue-router, pinia, tailwind, vite-plugin-pwa.
+TanStack Router, Query, shadcn, api-client, react-i18next.
 
-### Decision 2: Separate deployable
+### Decision 2: Workbox cache list
 
-No shared npm workspace required in this change. Duplicate a thin `api.ts` rather than couple builds.
+Precache app shell. Cache last check-in QR asset/data in Cache Storage. `/v1/*` network-first, no stale JSON as truth.
 
 ## Risks / Trade-offs
 
-- [Service worker caching API] → do not cache authenticated JSON in SW; network-first for `/v1/*`.
+- [Cached QR is static code] → matches checkin-attendance fallback; do not treat as a fresh signed token.
 
 ## Migration Plan
 

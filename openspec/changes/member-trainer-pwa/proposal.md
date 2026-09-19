@@ -1,23 +1,23 @@
 ## Why
 
-Members and trainers need a mobile-friendly PWA, not the staff dashboard. One app, role-based views, talking only to the Go API.
+Members and trainers need a PWA. One account can hold a member profile, trainer role, or both. Offline, the last check-in QR stays on screen.
 
 ## What Changes
 
-- Turn `app/` into a PWA (vite-plugin-pwa) with login, member home (membership, check-in history, book classes, workouts), and trainer home (clients, client workouts).
-- Web-push registration can be stubbed if the notifications API is not yet applied; do not add a Supabase client.
+- React + Vite PWA (vite-plugin-pwa / Workbox): cache app shell + last-known check-in QR; `/v1` network-first.
+- TanStack Router/Query, shadcn, react-hook-form + zod, react-i18next, packages/api-client.
+- View switcher; member and trainer flows; 60s QR refresh while online.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `member-trainer-pwa`: Role-based PWA for members and trainers via the server API.
+<!-- none -->
 
 ### Modified Capabilities
 
-<!-- none -->
+- `member-trainer-pwa`: View switching, Workbox cache, booking/workouts, refresh, i18n.
 
 ## Impact
 
-- `app/src/` plus PWA plugin
-- Depends on auth, members, memberships, classes, workouts, trainers APIs
+- Replace Vue scaffold in `app/`

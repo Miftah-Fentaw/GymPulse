@@ -1,24 +1,25 @@
 ## Why
 
-A deployed gym needs a public site for plans, schedule, contact, and trial signup without exposing staff tools or the database.
+A deployed gym needs a crawlable public site. Astro with React islands for the live trial form and schedule.
 
 ## What Changes
 
-- Turn `landing/` into a public marketing site for **a deployed gym** (not a multi-tenant SaaS catalog).
-- Public pages: home, plans, class schedule, contact, trial/signup request.
-- Public reads go through the Go API (public endpoints). Trial signup creates a lead or pending member via the server, never via Supabase.
+- Replace landing scaffold with Astro (static/hybrid) + React islands.
+- Public pages; trial POST via packages/api-client; i18n catalogs.
+- Public GET plans/schedule in openapi.yaml if missing.
+- No auth cookies.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `landing-site`: Public gym marketing site that uses only public GymPulse API endpoints.
+<!-- none -->
 
 ### Modified Capabilities
 
-<!-- none -->
+- `landing-site`: Astro SEO delivery, public pages, trial signup, no privileged API, i18n.
 
 ## Impact
 
-- `landing/src/`
-- Server may need public, unauthenticated endpoints for published plans and schedule (add in this change if missing)
+- `landing/` Astro app
+- Optional public routes + generate

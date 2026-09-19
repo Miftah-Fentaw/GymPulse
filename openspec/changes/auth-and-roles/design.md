@@ -1,49 +1,61 @@
 ## Context
 
-See proposal.md — Why. Depends on `bootstrap-server` and `database-migrations` (`gyms`, `branches`, gympulse schema).
+See proposal.md — Why. Depends on bootstrap-server and database-migrations. Caddy subdomains: `api.`, `admin.`, `app.`, root landing.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Login, JWT access, rotating refresh, five roles, Go middleware, logout/revoke, first owner
-- sqlc queries for users and refresh tokens
+- argon2id, JWT 15 min (golang-jwt/jwt/v5), opaque rotating refresh with family reuse detection
+- Cookie + CORS + CSRF for the Caddy layout
+- sqlc; UUIDv7; testcontainers; openapi.yaml auth paths
 
 **Non-Goals:**
-- OAuth, magic links, SSO
-- Multiple roles per user
-- Frontend screens (admin-app / PWA changes)
+- OAuth, frontend screens, member profile table
 
 ## Decisions
 
-### Decision 1: argon2id hashes
+### Decision 1: argon2id
 
-Prefer argon2id; bcrypt is acceptable if argon2id is awkward in the standard library set we already have. Never log passwords.
+No bcrypt. Never log passwords.
 
-### Decision 2: JWT in Go
+### Decision 2: JWT 15 minutes
 
-HS256 with `AUTH_JWT_SECRET` from env is enough for a self-hosted single gym. Access TTL ~15 minutes; refresh ~7–30 days, stored hashed in `refresh_tokens` with user_id and expiry.
+HS256, `AUTH_JWT_SECRET`, claims: `user_id`, `gym_id`, `staff_roles`, `has_member_profile`.
 
-### Decision 3: Cookie + body refresh
+### Decision 3: Opaque refresh + family
 
-`POST /v1/auth/refresh` reads cookie `refresh_token` if present, else JSON `{ "refresh_token": "..." }`. Login sets cookie for browser clients and also returns the token in JSON for the PWA.
+Store only a hash. Each row has `family_id`. Rotate on refresh: insert new, mark old rotated. If a rotated token is presented, revoke all rows with that `family_id`.
 
-### Decision 4: Role in JWT plus DB check on mutate
+### Decision 4: Cookies on api. under the Caddy layout
 
-Put `user_id`, `gym_id`, `role` in access claims. Middleware parses JWT; for authorization-sensitive routes, optionally re-read role from DB if we need instant revoke of role. Session revoke is refresh-token based; access tokens stay short-lived.
+Production hostnames:
 
-### Decision 5: users table, not members
+- `https://api.example.com` — Go (cookie host)
+- `https://admin.example.com`
+- `https://app.example.com`
+- `https://example.com` — landing, no auth cookies
 
-Staff and members both live in `gympulse.users`. Member-specific profile fields arrive in `members-and-memberships` (either extra columns or `members` 1:1 with user).
+Cookie: `HttpOnly`; `Secure` in production; `Path=/v1/auth`; **host-only** on the API host (do not set `Domain=.example.com`); `SameSite=Lax` (same eTLD+1). `__Host-` prefix only if Path is `/`.
+
+CORS: credentialed allowlist is `https://admin.<domain>` and `https://app.<domain>` only. Exact `Allow-Origin` + `Allow-Credentials: true`. Landing may call public GETs/lead POST **without** credentials.
+
+CSRF: cookie POSTs to `/v1/auth/refresh` and `/logout` require `Origin` in that allowlist and header `X-GymPulse-Client`.
+
+JSON body refresh is fallback only (not used by first-party apps when cookies work).
+
+### Decision 5: Staff roles table
+
+`user_staff_roles(user_id, role)`. Email unique per gym.
 
 ## Risks / Trade-offs
 
-- [JWT secret in env] → required var, fail fast if missing.
-- [Refresh in JSON] → XSS risk on PWA if stored in localStorage; document that the PWA should use memory + refresh rotation; cookie is preferred when same-site.
+- [Landing CSRF] → landing not credentialed.
+- [Token family revoke is blunt] → safer than reuse-as-refresh.
 
 ## Migration Plan
 
-`0002_auth.sql` additive. Down drops auth tables only.
+Additive. Down local-only.
 
 ## Open Questions
 
-None. First-owner bootstrap via env (`BOOTSTRAP_OWNER_EMAIL` + `BOOTSTRAP_OWNER_PASSWORD` on empty gym) unless we later add a setup route.
+None.
