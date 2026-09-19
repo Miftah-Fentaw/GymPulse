@@ -6,7 +6,7 @@
 ## 2. Metadata and authz
 
 - [ ] 2.1 `files` table (UUIDv7 PK, gym_id, key, content_type) — verify: migrate up
-- [ ] 2.2 Authenticated download endpoint 401 without token and 403/404 cross-gym — verify: HTTP tests (can use a stub member-less owner token)
+- [ ] 2.2 Authenticated download endpoint 401 without token and 403/404 cross-gym; objects are not served from a public URL — verify: HTTP tests (can use a stub member-less owner token); unauthenticated GET denied
 
 ## 3. OpenAPI and integration
 

@@ -1,12 +1,7 @@
 ## MODIFIED Requirements
 
-### Requirement: Compose stack
-The repository SHALL provide docker-compose services: the Go server, PostgreSQL 16, Caddy, and a scheduled `pg_dump` backup job with retention. Caddy SHALL reverse-proxy `api.` to the server and serve the static admin, app, and landing builds. Subdomains SHALL be `api.`, `admin.`, `app.`, and the root domain for landing. Caddy SHALL obtain automatic HTTPS in production.
-
-#### Scenario: Local compose
-- **WHEN** an operator runs `make dev` (or compose up)
-- **THEN** Postgres 16, the server, and Caddy are available
-- **AND** HTTP to the documented hostnames reaches the API and frontends (placeholders until those apps exist)
+### Requirement: Scheduled database backups
+The compose stack SHALL include a scheduled `pg_dump` backup job with retention. Production rollback is restore from those dumps, not `migrate down`.
 
 #### Scenario: Scheduled backups
 - **WHEN** the backup service runs

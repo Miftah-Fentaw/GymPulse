@@ -1,17 +1,17 @@
 ## Why
 
-The repository has an empty Go module and no runnable API. We need a shippable skeleton: config, JSON logs, health, pgx, OpenAPI codegen, Makefile, and a pnpm workspace—before schema or domain work.
+The repository has an empty Go module and no runnable API. This change ships a server-only skeleton: typed env config, JSON logs, health/ready, pgx, OpenAPI Go codegen, Makefile, compose with Postgres 16, and testcontainers. Frontend workspace, Caddy, and backups are later changes.
 
 ## What Changes
 
-- `cmd/gympulse` entrypoint; chi; `GET /health` and `GET /ready`.
-- Typed env config (caarlos0/env), fail-fast; slog JSON with request IDs.
-- pgx pool from `DATABASE_URL` (pgx defaults).
-- `openapi.yaml` (OpenAPI 3.1) skeleton including health/ready; oapi-codegen chi strict handlers; request validation middleware.
-- `packages/api-client` generation (openapi-typescript + openapi-fetch).
-- Root Makefile (`dev`, `test`, `lint`, `generate`, `migrate-*`, `build`) and pnpm workspace scaffolding for admin, app, landing, packages/api-client. No frontend feature screens.
-- CI check: generate is clean (no diff).
-- `.env.example` for variables this slice uses.
+- `cmd/gympulse` entrypoint; chi; `GET /health` and `GET /ready` (ready pings the DB).
+- Typed env config (caarlos0/env), fail-fast; slog JSON with request IDs; graceful shutdown.
+- pgx pool from a direct/session-mode `DATABASE_URL` (pgx defaults). No transaction-mode poolers. Supabase is not a target.
+- `openapi.yaml` (OpenAPI 3.1) skeleton including health/ready and `/v1`; oapi-codegen chi strict handlers; request validation middleware.
+- Root Makefile: `dev`, `test`, `lint`, `generate` (Go/oapi-codegen only), `build`. No `migrate-*` (those arrive with database-migrations).
+- CI check: generated Go is up to date (no diff).
+- testcontainers-go tests against real Postgres 16.
+- `.env.example`, golangci-lint config, docker-compose with only `server` and `postgres:16`.
 
 ## Capabilities
 
@@ -21,12 +21,10 @@ The repository has an empty Go module and no runnable API. We need a shippable s
 
 ### Modified Capabilities
 
-- `deployment`: Health, typed env config, standard pgx.
-- `http-api`: OpenAPI skeleton, codegen pipeline, validation middleware, shared TS client.
+- `deployment`: Health, typed env, direct DATABASE_URL, standard pgx, compose with server and Postgres 16.
+- `http-api`: OpenAPI skeleton, Go codegen pipeline, validation middleware.
 
 ## Impact
 
 - `server/cmd/gympulse/`, `internal/config`, `internal/http`, `internal/db`
-- `openapi.yaml`, generate scripts, `packages/api-client`
-- `Makefile`, `pnpm-workspace.yaml`, placeholder packages
-- CI workflow for generate drift
+- `openapi.yaml`, oapi-codegen output, Makefile, docker-compose, `.env.example`, golangci-lint, CI generate-drift job

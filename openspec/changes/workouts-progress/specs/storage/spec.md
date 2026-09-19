@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Member and progress photos
-Staff SHALL be able to attach a profile photo to a member. Members and assigned trainers SHALL be able to attach progress photos to that member. Photos MUST be stored via the storage interface and metadata MUST be gym-scoped.
+Staff SHALL be able to attach a profile photo to a member. Members and assigned trainers SHALL be able to attach progress photos to that member. Photos MUST be stored via the storage interface, MUST be gym-scoped, and MUST be private by default.
 
 Profile photos are implemented in members-and-memberships. This slice implements **progress photos**.
 
@@ -21,4 +21,8 @@ Profile photos are implemented in members-and-memberships. This slice implements
 
 #### Scenario: Unassigned trainer cannot upload
 - **WHEN** a trainer uploads a progress photo for a member they are not assigned to
+- **THEN** the server denies the request
+
+#### Scenario: Public URL is not used
+- **WHEN** a client tries to fetch a member photo without authentication and without a valid signed URL
 - **THEN** the server denies the request

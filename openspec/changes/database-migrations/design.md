@@ -1,14 +1,18 @@
 ## Context
 
-See proposal.md — Why. Depends on bootstrap-server. Goose Provider + session locker. Default schema. UUIDv7 in Go. testcontainers-go for DB tests.
+See proposal.md — Why. Depends on bootstrap-server. Goose Provider + session locker. Default schema. UUIDv7 in Go. testcontainers-go for DB tests. Compose already has `server` and `postgres:16`.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Embedded migrate, CLI, AUTO_MIGRATE default false, gyms/branches with timezone+currency, compose with Caddy and backups
+- Embedded migrate, CLI, AUTO_MIGRATE default false, gyms/branches with timezone+currency
+- Scheduled `pg_dump` backup job with retention
+- Makefile `migrate-*`
 
 **Non-Goals:**
-- Auth tables, frontend apps (Caddy may serve placeholders)
+- Auth tables
+- Caddy and static frontend serving (admin-app-core)
+- pnpm / frontend apps
 
 ## Decisions
 
@@ -20,9 +24,9 @@ SQL-only. Version table `goose_db_version` in public.
 
 `migrate down` works locally. README: prod rollback = restore dump.
 
-### Decision 3: Compose services
+### Decision 3: Backup service only
 
-`server`, `postgres:16`, `caddy`, `backup` (cron/`ofelia`/simple loop). Caddyfile: `api.` reverse_proxy server; `admin.`, `app.`, root serve `./dist-*` or placeholders.
+Add a `backup` compose service (cron/`ofelia`/simple loop). Do not add Caddy in this change.
 
 ### Decision 4: Gym settings on gyms
 
@@ -34,7 +38,7 @@ Migration tests use a real Postgres 16 container. No DB mocks.
 
 ## Risks / Trade-offs
 
-- [Caddy HTTPS locally] → HTTP or internal CA in dev; automatic HTTPS in production.
+- [No Caddy yet] → operators hit the server port directly until admin-app-core.
 
 ## Migration Plan
 

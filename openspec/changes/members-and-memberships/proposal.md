@@ -6,7 +6,7 @@ Staff cannot run a gym without member records, plans, and a place to catch trial
 
 - Member profiles linked to user accounts; gym- and branch-scoped; optional profile photo via storage.
 - Plans and memberships with freeze/upgrade/cancel/expiry and `MembershipGrantsAccess`.
-- Leads: public POST (used later by landing), staff list/convert.
+- Leads: public POST (used later by landing) with per-IP rate limit, honeypot, captcha hook (off by default), validation/size limits, and duplicate suppression; staff list/convert.
 - Staff APIs for owner/manager/receptionist; members read their own profile and membership.
 
 ## Capabilities

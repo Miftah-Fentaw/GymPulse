@@ -16,7 +16,7 @@
 
 ## 4. Leads
 
-- [ ] 4.1 Public POST lead with rate limit; staff list/update/convert — verify: invalid body 400; convert creates member and marks lead
+- [ ] 4.1 Public POST lead with per-IP rate limit, honeypot, captcha hook (off by default), validation/size limits, and duplicate suppression; staff list/update/convert — verify: invalid body 400; oversized 4xx; honeypot stores nothing; duplicate contact in-window does not create a second open lead; convert creates member and marks lead
 
 ## 5. OpenAPI and integration
 

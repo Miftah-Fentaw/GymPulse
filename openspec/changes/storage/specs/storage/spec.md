@@ -24,8 +24,13 @@ The system SHALL ship an S3-compatible driver configurable with endpoint, bucket
 - **THEN** a saved object can be retrieved through the interface
 
 ### Requirement: Authorized object access
-Object access authorization SHALL be enforced by the Go server (authenticated download or short-lived signed URL issued by the server). Unauthenticated clients MUST NOT read private objects.
+Object access authorization SHALL be enforced by the Go server. Photos and other private objects MUST be private by default: they MUST NOT be world-readable from a public bucket or static path. Clients MAY read a private object only via an authenticated API endpoint or a short-lived signed URL issued by the server. Unauthenticated clients MUST NOT read private objects.
 
 #### Scenario: Unauthenticated download of a private object
 - **WHEN** a client requests a private object without a valid server credential
 - **THEN** the server denies the download
+
+#### Scenario: Photos are private by default
+- **WHEN** a member or progress photo is stored
+- **THEN** unauthenticated clients cannot read the object
+- **AND** the only allowed reads are an authenticated API download or a short-lived signed URL issued by the server

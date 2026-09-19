@@ -5,14 +5,14 @@ OpenAPI 3.1 is the source of truth for the GymPulse HTTP API under /v1, driving 
 ## Requirements
 
 ### Requirement: Spec-first OpenAPI
-The repository SHALL keep a versioned `openapi.yaml` (OpenAPI 3.1) that describes all `/v1` HTTP operations. Generated Go and TypeScript artifacts MUST be produced from that file. Hand-written duplicates of those types MUST NOT be the source of truth.
+The repository SHALL keep a versioned `openapi.yaml` (OpenAPI 3.1) that describes all `/v1` HTTP operations. Generated Go artifacts MUST be produced from that file via oapi-codegen (chi server, strict handlers). Hand-written duplicates of those types MUST NOT be the source of truth.
 
 #### Scenario: Generate from spec
 - **WHEN** an operator runs `make generate`
-- **THEN** Go chi strict server interfaces/types and `packages/api-client` are written from `openapi.yaml`
+- **THEN** Go chi strict server interfaces and types are written from `openapi.yaml`
 
-#### Scenario: CI detects drift
-- **WHEN** CI runs generate and the working tree differs
+#### Scenario: CI detects Go generate drift
+- **WHEN** CI runs generate and the Go generated files differ from the working tree
 - **THEN** the check fails
 - **AND** the developer must commit the regenerated files or fix the spec
 
@@ -25,8 +25,16 @@ The server SHALL validate incoming requests against the OpenAPI schema before ha
 - **AND** the response is a 4xx with the standard error JSON
 
 ### Requirement: Shared TypeScript client
-admin, app, and landing SHALL call the API through `packages/api-client` generated with openapi-typescript and openapi-fetch. They MUST NOT hand-roll fetch wrappers that bypass those types for `/v1` resources.
+admin, app, and landing SHALL call the API through `packages/api-client` generated with openapi-typescript and openapi-fetch. They MUST NOT hand-roll fetch wrappers that bypass those types for `/v1` resources. TypeScript generation lands with the first frontend workspace, not the server bootstrap.
 
 #### Scenario: Admin uses generated client
 - **WHEN** the admin app loads members
 - **THEN** the call goes through packages/api-client
+
+#### Scenario: Generate TypeScript client
+- **WHEN** an operator runs `make generate` after the frontend workspace exists
+- **THEN** `packages/api-client` is written from `openapi.yaml` using openapi-typescript and openapi-fetch
+
+#### Scenario: CI detects TypeScript generate drift
+- **WHEN** CI runs generate and the TypeScript generated files differ from the working tree
+- **THEN** the check fails

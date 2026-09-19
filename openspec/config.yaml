@@ -22,26 +22,34 @@ context: |
     landing/             Astro public site (React islands)
     packages/api-client  Generated OpenAPI TypeScript client
     openapi.yaml         OpenAPI 3.1 source of truth for HTTP /v1
-    Makefile             dev, test, lint, generate, migrate-*, build
+    Makefile             dev, test, lint, generate, build (migrate-* from
+                         database-migrations)
     openspec/            Specs, changes, and this project context
 
   Go module path: gympulse-server (cmd/gympulse).
-  JS package manager: pnpm workspace (admin, app, landing, packages/api-client).
+  JS package manager: pnpm workspace (admin, app, landing,
+  packages/api-client) — introduced in admin-app-core, not bootstrap-server.
 
   ## How to run everything locally
 
   1. Copy `.env.example` to `.env` and set secrets (at least DATABASE_URL,
      AUTH_JWT_SECRET). Compose defaults are listed in `.env.example`.
-  2. `make generate` — sqlc, oapi-codegen, openapi-typescript.
-  3. `make migrate-up` — apply embedded migrations (or rely on compose).
-  4. `make dev` — docker-compose: postgres:16, server, caddy, backup job;
-     Caddy serves api., admin., app., and the site root (landing).
-  5. `make test` — Go tests via testcontainers-go (Postgres 16) plus frontend
-     lint/unit as configured.
+     DATABASE_URL MUST be a direct or session-mode Postgres URL. Do not use
+     a transaction-mode pooler. Supabase is not a supported target.
+  2. `make generate` — oapi-codegen (sqlc and openapi-typescript are added
+     by later changes).
+  3. `make migrate-up` — after database-migrations; apply embedded
+     migrations (or rely on compose).
+  4. `make dev` — docker-compose. bootstrap-server: postgres:16 and
+     server. database-migrations adds the scheduled backup job.
+     admin-app-core adds Caddy (api., admin., app., landing).
+  5. `make test` — Go tests via testcontainers-go (Postgres 16) plus
+     frontend lint/unit as configured.
   6. `make lint` and `make build`.
 
-  Subdomains (Caddy, automatic HTTPS in production): api.<domain>,
-  admin.<domain>, app.<domain>, and the root domain for landing.
+  Subdomains (Caddy, automatic HTTPS in production, from admin-app-core):
+  api.<domain>, admin.<domain>, app.<domain>, and the root domain for
+  landing.
 
   ## Core architecture (non-negotiable)
 
@@ -62,7 +70,9 @@ context: |
   ## Database and migrations
 
   - PostgreSQL **16+**. Compose uses postgres:16. UUIDv7 generated in Go.
-  - Single DATABASE_URL. Default schema (`public`). No search_path tricks.
+  - Single DATABASE_URL (direct Postgres or session-mode pooler only;
+    never a transaction-mode pooler). Default schema (`public`). No
+    search_path tricks. Supabase is not a supported target.
   - SQL files in server/migrations/, goose Provider API + Postgres session
     locker, go:embed. AUTO_MIGRATE defaults to false.
   - Commands: gympulse migrate up | down | status (also `make migrate-*`).
@@ -75,7 +85,8 @@ context: |
   - `openapi.yaml` (OpenAPI 3.1) is the source of truth for HTTP `/v1`.
   - Go: oapi-codegen (chi server, strict handlers) plus request validation
     middleware against the spec.
-  - TypeScript: openapi-typescript + openapi-fetch → packages/api-client.
+  - TypeScript: openapi-typescript + openapi-fetch → packages/api-client
+    (admin-app-core; bootstrap-server generates Go only).
   - Every change that adds or changes endpoints MUST update openapi.yaml
     and run `make generate`. CI fails if generate produces a diff.
   - Server-side validation on every input, matching the OpenAPI schema.
@@ -117,7 +128,9 @@ context: |
     strings (catalog keys only).
   - PWA (app): vite-plugin-pwa / Workbox. Cache the app shell and the
     member's last-known check-in QR for offline display. Do not cache
-    authenticated `/v1` JSON as the source of truth (network-first).
+    authenticated `/v1` JSON long-term as the source of truth
+    (network-first). On logout the service worker MUST clear all caches
+    (cached QR and cached API data).
 
   ## Workflow
 

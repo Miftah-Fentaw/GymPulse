@@ -28,14 +28,19 @@ The system SHALL ship an S3-compatible driver configurable with endpoint, bucket
 - **THEN** a saved object can be retrieved through the interface
 
 ### Requirement: Authorized object access
-Object access authorization SHALL be enforced by the Go server (authenticated download or short-lived signed URL issued by the server). Unauthenticated clients MUST NOT read private objects.
+Object access authorization SHALL be enforced by the Go server. Photos and other private objects MUST be private by default: they MUST NOT be world-readable from a public bucket or static path. Clients MAY read a private object only via an authenticated API endpoint or a short-lived signed URL issued by the server. Unauthenticated clients MUST NOT read private objects.
 
 #### Scenario: Unauthenticated download of a private object
 - **WHEN** a client requests a private object without a valid server credential
 - **THEN** the server denies the download
 
+#### Scenario: Photos are private by default
+- **WHEN** a member or progress photo is stored
+- **THEN** unauthenticated clients cannot read the object
+- **AND** the only allowed reads are an authenticated API download or a short-lived signed URL issued by the server
+
 ### Requirement: Member and progress photos
-Staff SHALL be able to attach a profile photo to a member. Members and assigned trainers SHALL be able to attach progress photos to that member. Photos MUST be stored via the storage interface and metadata MUST be gym-scoped.
+Staff SHALL be able to attach a profile photo to a member. Members and assigned trainers SHALL be able to attach progress photos to that member. Photos MUST be stored via the storage interface, MUST be gym-scoped, and MUST be private by default.
 
 #### Scenario: Staff upload member photo
 - **WHEN** a receptionist uploads a valid image for a member in their gym
@@ -44,4 +49,8 @@ Staff SHALL be able to attach a profile photo to a member. Members and assigned 
 
 #### Scenario: Cross-gym photo is denied
 - **WHEN** staff of gym A request a photo belonging to gym B
+- **THEN** the server denies the request
+
+#### Scenario: Public URL is not used
+- **WHEN** a client tries to fetch a member photo without authentication and without a valid signed URL
 - **THEN** the server denies the request

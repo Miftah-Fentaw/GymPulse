@@ -1,8 +1,11 @@
-## 1. Client and shell
+## 1. Workspace, client, and Caddy
 
-- [ ] 1.1 Run `make generate` and depend on `packages/api-client` from admin — verify: admin imports the generated client; `pnpm` workspace resolves it
-- [ ] 1.2 Replace admin with React + Vite + TypeScript, TanStack Router, TanStack Query, Tailwind, shadcn/ui, react-hook-form + zod, react-i18next (English catalog) — verify: `pnpm --filter admin build` succeeds; `rg` finds no hard-coded button labels outside `locales/`
-- [ ] 1.3 Login, cookie refresh, logout, route guards; reject member-only and trainer-only — verify: logged-out `/members` redirects; member-only cannot open shell
+- [ ] 1.1 pnpm workspace covering `admin`, `app`, `landing`, `packages/api-client` — verify: `pnpm-workspace.yaml` lists them; `pnpm install` works
+- [ ] 1.2 Generate `packages/api-client` with openapi-typescript + openapi-fetch; extend `make generate` and CI so TS drift fails the check — verify: `make generate` writes TS types; workflow step exists
+- [ ] 1.3 Add Caddy to compose: `api.` reverse-proxies the server; `admin.`, `app.`, and root serve static builds/placeholders — verify: `docker compose config --services` includes caddy; Caddyfile names the four hostnames
+- [ ] 1.4 Depend on `packages/api-client` from admin — verify: admin imports the generated client; `pnpm` workspace resolves it
+- [ ] 1.5 Replace admin with React + Vite + TypeScript, TanStack Router, TanStack Query, Tailwind, shadcn/ui, react-hook-form + zod, react-i18next (English catalog) — verify: `pnpm --filter admin build` succeeds; `rg` finds no hard-coded button labels outside `locales/`
+- [ ] 1.6 Login, cookie refresh, logout, route guards; reject member-only and trainer-only — verify: logged-out `/members` redirects; member-only cannot open shell
 
 ## 2. Core pages
 

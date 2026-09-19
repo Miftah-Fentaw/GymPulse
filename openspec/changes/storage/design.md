@@ -20,7 +20,7 @@ See proposal.md — Why. Depends on bootstrap-server (config). Photo metadata ta
 
 ### Decision 2: Download via API
 
-`GET /v1/files/{id}` with bearer auth rather than public bucket URLs for MVP.
+Photos are private by default. `GET /v1/files/{id}` with bearer auth, or a short-lived signed URL issued by the server. No public bucket URLs.
 
 ### Decision 3: Default local
 

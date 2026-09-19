@@ -19,7 +19,7 @@ TanStack Router, Query, shadcn, api-client, react-i18next.
 
 ### Decision 2: Workbox cache list
 
-Precache app shell. Cache last check-in QR asset/data in Cache Storage. `/v1/*` network-first, no stale JSON as truth.
+Precache app shell. Cache last check-in QR asset/data in Cache Storage. Authenticated `/v1/*` network-first and not cached long-term. On logout, delete all caches.
 
 ## Risks / Trade-offs
 

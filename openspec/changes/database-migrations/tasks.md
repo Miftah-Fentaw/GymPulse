@@ -15,8 +15,8 @@
 
 ## 4. Compose and docs
 
-- [ ] 4.1 docker-compose: server, postgres:16, caddy, backup job with retention — verify: `docker compose config` lists those services
-- [ ] 4.2 Caddyfile for `api.`, `admin.`, `app.`, and root landing; `.env.example` lists every new variable — verify: files exist and mention the four hostnames
+- [ ] 4.1 docker-compose adds a backup job with retention; keeps `server` and `postgres:16`; does not add Caddy — verify: `docker compose config --services` lists server, postgres, backup
+- [ ] 4.2 `.env.example` lists every new variable this slice adds — verify: backup retention/schedule vars documented
 
 ## 5. Tests
 

@@ -1,7 +1,9 @@
 ## MODIFIED Requirements
 
 ### Requirement: Capture leads
-Unauthenticated visitors SHALL submit trial or contact requests (name, contact, optional message) to the server. The server MUST persist a gym-scoped lead. Spam controls MUST exist (at least rate limiting).
+Unauthenticated visitors SHALL submit trial or contact requests (name, contact, optional message) to the server. The server MUST persist a gym-scoped lead.
+
+Public lead submission MUST apply spam and abuse controls: per-IP rate limiting, a honeypot field that MUST be empty, a captcha verification hook that is off by default, server-side validation and request size limits, and duplicate suppression for the same contact in a short window.
 
 #### Scenario: Valid trial form
 - **WHEN** a visitor submits a valid trial request for the gym
@@ -12,6 +14,33 @@ Unauthenticated visitors SHALL submit trial or contact requests (name, contact, 
 - **WHEN** a visitor omits required fields
 - **THEN** no lead is stored
 - **AND** the API returns a validation error
+
+#### Scenario: Oversized body
+- **WHEN** a visitor submits a lead body larger than the documented size limit
+- **THEN** no lead is stored
+- **AND** the API returns a 4xx error
+
+#### Scenario: Rate limited
+- **WHEN** a client exceeds the per-IP lead submission limit
+- **THEN** further submissions from that IP are rejected
+- **AND** no additional lead is stored for those rejected requests
+
+#### Scenario: Honeypot filled
+- **WHEN** a submission includes a non-empty honeypot field
+- **THEN** the API returns success without storing a lead
+
+#### Scenario: Captcha hook disabled
+- **WHEN** captcha is not configured (the default)
+- **THEN** a valid submission is accepted without captcha verification
+
+#### Scenario: Captcha hook enabled
+- **WHEN** captcha is configured and a submission fails captcha verification
+- **THEN** no lead is stored
+- **AND** the API returns a 4xx error
+
+#### Scenario: Duplicate suppression
+- **WHEN** a visitor submits the same contact for the same gym within the suppression window
+- **THEN** the API returns success without creating a second open lead
 
 ### Requirement: Staff manage leads
 Owner, manager, and receptionist SHALL list and view leads for their gym. They SHALL be able to mark a lead contacted, dismissed, or converted into a member (conversion MAY reuse members create).
