@@ -1,19 +1,20 @@
 ## Context
 
-See proposal.md — Why. After billing-payments. React is decided. Refresh cookies for `admin.` → `api.`. Bootstrap shipped Go-only generate and compose without Caddy.
+See proposal.md — Why. After billing-payments. React is decided. Refresh cookies for `admin.` → `api.` behind a host reverse proxy. Bootstrap shipped Go-only generate and a native Go process.
 
 ## Goals / Non-Goals
 
 **Goals:**
 - pnpm workspace + `packages/api-client` from openapi.yaml
-- Caddy serving api/admin/app/landing hostnames
+- Document native Caddy or nginx for api/admin/app/landing
 - React admin shell + core loop using packages/api-client
 - i18n English catalogs
 
 **Non-Goals:**
 - Classes, trainers, reports (admin-app-complete)
-- PWA (member-trainer-pwa) and Astro landing (landing-site) feature work beyond placeholders Caddy can serve
-- Database backups (already database-migrations)
+- PWA and Astro landing feature work
+- Docker/Compose
+- Embedding a static file server in Go (keep the API process API-only)
 
 ## Decisions
 
@@ -37,9 +38,9 @@ JSON catalogs, English default. No hard-coded UI strings.
 
 `make generate` gains openapi-typescript + openapi-fetch. CI checks TS drift. Do not add this in bootstrap-server.
 
-### Decision 6: Caddy here
+### Decision 6: Native reverse proxy
 
-Compose adds `caddy`. Caddyfile: `api.` reverse_proxy server; `admin.`, `app.`, root serve built static assets or placeholders.
+Operators install Caddy or nginx on the host. Example config lives in `docs/reverse-proxy.md`. The Go server does not serve SPA files.
 
 ## Risks / Trade-offs
 
@@ -47,7 +48,7 @@ Compose adds `caddy`. Caddyfile: `api.` reverse_proxy server; `admin.`, `app.`, 
 
 ## Migration Plan
 
-Frontend workspace + Caddy + admin core loop.
+Frontend workspace + admin core loop.
 
 ## Open Questions
 

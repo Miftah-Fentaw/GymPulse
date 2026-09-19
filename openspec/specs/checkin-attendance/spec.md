@@ -62,3 +62,35 @@ The system SHALL expose attendance history filtered by gym, and optionally by br
 - **WHEN** a receptionist requests today's attendance for their branch
 - **THEN** the server returns check-ins for that branch and day in the gym time zone
 - **AND** does not include other gyms
+
+### Requirement: Issue check-in token
+An authenticated member SHALL obtain a fresh 60-second signed token plus their stable member_code via `GET /v1/me/checkin-token`. Staff and other members MUST NOT issue a token for someone else through this endpoint.
+
+#### Scenario: Member issues token
+- **WHEN** a member with a current membership calls `GET /v1/me/checkin-token`
+- **THEN** the response includes a signed token and member_code
+- **AND** another member cannot fetch that token
+
+### Requirement: Correct attendance
+Owner and manager SHALL void or correct an attendance event (branch or timestamp) via `PATCH /v1/checkins/{eventId}` with a reason. The correction MUST be audited. Receptionists MUST NOT correct events in the MVP.
+
+#### Scenario: Void a mistaken check-in
+- **WHEN** a manager voids an attendance event with a reason
+- **THEN** the event no longer counts as present or in daily history totals
+- **AND** an audit event is stored
+
+### Requirement: Who is present
+Staff SHALL list members currently considered in the gym (checked in and not checked out / not older than the configured presence window) via `GET /v1/checkins/present`.
+
+#### Scenario: Front desk occupancy
+- **WHEN** a receptionist requests present members for a branch
+- **THEN** the list includes members with a recent non-voided check-in at that branch
+- **AND** another gym's members are not included
+
+### Requirement: Peak hours
+Owner and manager SHALL retrieve a histogram of check-ins by hour of day via `GET /v1/checkins/peak-hours`. This is Later than MVP occupancy.
+
+#### Scenario: Peak hours later
+- **WHEN** a manager requests peak hours for a date range and branch
+- **THEN** the response buckets check-in counts by gym-local hour
+- **AND** a receptionist is forbidden

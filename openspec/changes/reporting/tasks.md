@@ -6,4 +6,9 @@
 ## 2. OpenAPI and integration
 
 - [ ] 2.1 Update `openapi.yaml` for report endpoints and `make generate` — verify: generate is clean
-- [ ] 2.2 Seed member, payment, check-in; reports match expected totals — verify: `go test` with testcontainers Postgres 16
+- [ ] 2.2 Seed member, payment, check-in; reports match expected totals — verify: `go test` against local Postgres 16 (TEST_DATABASE_URL)
+
+## 3. Extra reports (MVP)
+
+- [ ] 3.1 Signups and class utilization endpoints — verify: receptionist 403
+- [ ] 3.2 Report export csv/json — verify: trainer 403

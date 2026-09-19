@@ -4,9 +4,9 @@ Staff cannot run a gym without member records, plans, and a place to catch trial
 
 ## What Changes
 
-- Member profiles linked to user accounts; gym- and branch-scoped; optional profile photo via storage.
-- Plans and memberships with freeze/upgrade/cancel/expiry and `MembershipGrantsAccess`.
-- Leads: public POST (used later by landing) with per-IP rate limit, honeypot, captcha hook (off by default), validation/size limits, and duplicate suppression; staff list/convert.
+- Member profiles linked to user accounts; gym- and branch-scoped; optional profile photo via storage; search/filters, restore, notes, emergency contact, CSV import/export.
+- Plans and memberships with freeze/resume/upgrade/cancel/renew/expiry, expiring-soon list, and `MembershipGrantsAccess`.
+- Leads: public POST (used later by landing) with per-IP rate limit, honeypot, captcha hook (off by default), validation/size limits, and duplicate suppression; staff list/convert/follow-up notes.
 - Staff APIs for owner/manager/receptionist; members read their own profile and membership.
 
 ## Capabilities

@@ -71,3 +71,12 @@ The runner and the request pool SHALL use the same `DATABASE_URL`. There is no s
 #### Scenario: One URL
 - **WHEN** DATABASE_URL points at a reachable PostgreSQL 16 server
 - **THEN** `gympulse migrate up` and runtime queries both use that URL
+
+### Requirement: Gym settings columns
+The gyms and branches baseline SHALL include columns (or child tables) for public branding, branch business hours, and gym holidays so settings APIs in auth-and-roles do not require a later schema rewrite. UUID primary keys remain application-supplied UUIDv7.
+
+#### Scenario: Hours and holidays persist
+- **WHEN** the init (or immediately following) migration has run
+- **THEN** a gym can store branding fields
+- **AND** a branch can store weekly hours
+- **AND** holidays can be stored per gym with a date and name

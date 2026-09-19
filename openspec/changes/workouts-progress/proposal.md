@@ -4,7 +4,7 @@ Members and their coaches need a place to record workouts and see history. This 
 
 ## What Changes
 
-- Workout logs owned by a member (and gym).
+- Workout logs owned by a member (and gym); exercise library, workout plans, measurements, goals.
 - Member CRUD on own logs; progress as chronological history.
 - Trainers read/write logs only for assigned clients.
 

@@ -12,4 +12,8 @@
 
 - [ ] 3.1 Config default is local; `.env.example` lists storage vars — verify: file contents
 - [ ] 3.2 Update `openapi.yaml` for file download/upload routes and `make generate` — verify: generate is clean
-- [ ] 3.3 DB tests use testcontainers-go Postgres 16 — verify: `go test` does not mock SQL
+- [ ] 3.3 DB tests use TEST_DATABASE_URL (local Postgres 16) — verify: `go test` does not mock SQL
+
+## 4. File HTTP (MVP)
+
+- [ ] 4.1 Upload, metadata, authenticated download, signed URL, delete in OpenAPI and handlers when applied — verify: unauthenticated 401; expired signed URL denied

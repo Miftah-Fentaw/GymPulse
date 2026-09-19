@@ -9,4 +9,10 @@
 ## 2. OpenAPI and integration
 
 - [ ] 2.1 Update `openapi.yaml` for workouts/progress photos and `make generate` — verify: generate is clean
-- [ ] 2.2 Member logs a workout; trainer assigned can read it; unassign then deny — verify: `go test` with testcontainers Postgres 16
+- [ ] 2.2 Member logs a workout; trainer assigned can read it; unassign then deny — verify: `go test` against local Postgres 16 (TEST_DATABASE_URL)
+
+## 3. Library, plans, measurements (MVP)
+
+- [ ] 3.1 Exercise library CRUD — verify: gym-scoped
+- [ ] 3.2 Workout plans + assign to member — verify: unassigned trainer 403
+- [ ] 3.3 Measurements and goals — verify: other member 403

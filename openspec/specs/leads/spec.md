@@ -57,3 +57,11 @@ Owner, manager, and receptionist SHALL list and view leads for their gym. They S
 - **WHEN** staff convert a lead into a member with required profile fields
 - **THEN** a member profile exists
 - **AND** the lead is marked converted and linked to that member
+
+### Requirement: Lead follow-up notes
+Owner, manager, and receptionist SHALL add follow-up notes on a lead via `POST /v1/leads/{leadId}/notes`. Notes MUST be gym-scoped. Public lead POST MUST NOT create notes.
+
+#### Scenario: Staff follow-up
+- **WHEN** a receptionist adds a note to a lead
+- **THEN** staff listing that lead can see the note
+- **AND** an unauthenticated client cannot

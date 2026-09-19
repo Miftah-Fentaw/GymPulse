@@ -8,7 +8,7 @@ See proposal.md — Why. Depends on members-and-memberships (`MembershipGrantsAc
 - 60-second signed QR token + member code
 - Idempotent 15-minute window
 - Staff search check-in and code+photo fallback
-- OpenAPI + testcontainers
+- OpenAPI + local Postgres tests (TEST_DATABASE_URL)
 
 **Non-Goals:**
 - Hardware turnstiles

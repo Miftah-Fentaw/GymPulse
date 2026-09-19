@@ -48,3 +48,58 @@ Chargeable gateways SHALL be invoked only through a Go interface. The default im
 - **WHEN** the configured gateway is the manual/no-op driver
 - **THEN** recording a payment persists in GymPulse
 - **AND** no external HTTP charge call is made
+
+### Requirement: Void invoice
+Owner and manager SHALL void an unpaid invoice via `POST /v1/invoices/{invoiceId}/void`. Paid invoices MUST NOT be voided; staff MUST refund instead. Void MUST be audited.
+
+#### Scenario: Void unpaid
+- **WHEN** a manager voids an issued unpaid invoice
+- **THEN** the invoice status is void
+- **AND** it is not listed as overdue
+
+### Requirement: Refund payment
+Owner and manager SHALL refund a recorded payment (full or partial) via `POST /v1/payments/{paymentId}/refund` with an Idempotency-Key. Invoice balances MUST be recomputed. Gateways are not charged in the MVP (manual driver).
+
+#### Scenario: Partial refund
+- **WHEN** a manager refunds part of a cash payment
+- **THEN** a refund record exists
+- **AND** the invoice remaining balance increases by that amount
+
+### Requirement: Invoice line discount
+Owner and manager SHALL apply a one-off amount or percent discount on an issued unpaid invoice via `POST /v1/invoices/{invoiceId}/discount`. This is not a promo-code engine.
+
+#### Scenario: Discount unpaid invoice
+- **WHEN** a manager applies a valid discount to an unpaid invoice
+- **THEN** the invoice total decreases
+- **AND** a paid invoice is rejected
+
+### Requirement: Promo codes
+Promo code CRUD and redemption SHALL be Later. MVP gyms use manual line discounts only.
+
+#### Scenario: Promo later
+- **WHEN** a client calls promo-code endpoints before that later slice
+- **THEN** the operation is documented as Later in OpenAPI
+- **AND** it is not required for MVP billing
+
+### Requirement: Member payment history
+Staff and the owning member SHALL list that member's payments via `GET /v1/members/{memberId}/payments`. Other members MUST be denied.
+
+#### Scenario: Member views own payments
+- **WHEN** a member lists their payments
+- **THEN** only that member's payments are returned
+
+### Requirement: Daily cash-up
+Owner, manager, and receptionist SHALL retrieve totals by payment method for a gym-local day (optional branch and method filters) via `GET /v1/billing/cash-up`.
+
+#### Scenario: End of day cash
+- **WHEN** a receptionist requests cash-up for today
+- **THEN** the response totals recorded cash (and other methods) for that gym-local day
+- **AND** another gym's payments are excluded
+
+### Requirement: Payment idempotency
+Recording a payment or refund SHALL require or honor `Idempotency-Key`. Replays MUST NOT create a second money row.
+
+#### Scenario: Double submit
+- **WHEN** staff record the same payment twice with one Idempotency-Key
+- **THEN** one payment exists
+- **AND** both responses refer to it

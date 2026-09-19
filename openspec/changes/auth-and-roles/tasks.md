@@ -1,6 +1,6 @@
 ## 1. Schema
 
-- [ ] 1.1 Migration for `users`, `user_staff_roles`, `refresh_tokens` (hash, family_id, rotated_at) with UUID PKs — verify: migrate up via testcontainers; insert requires application id
+- [ ] 1.1 Migration for `users`, `user_staff_roles`, `refresh_tokens` (hash, family_id, rotated_at) with UUID PKs — verify: migrate up via TEST_DATABASE_URL; insert requires application id
 - [ ] 1.2 Unique email per gym — verify: duplicate email in one gym fails
 
 ## 2. Password and JWT
@@ -11,7 +11,7 @@
 ## 3. HTTP
 
 - [ ] 3.1 Document login/refresh/logout/me in `openapi.yaml` and `make generate` — verify: generate has no unexpected diff; handlers are oapi-codegen strict
-- [ ] 3.2 Login sets host-only refresh cookie for api host; returns access token + capabilities — verify: HTTP test with testcontainers
+- [ ] 3.2 Login sets host-only refresh cookie for api host; returns access token + capabilities — verify: HTTP test against local Postgres 16 (TEST_DATABASE_URL)
 - [ ] 3.3 Refresh rotates; reuse of old token revokes the family — verify: third call with first token fails family
 - [ ] 3.4 Logout revokes; Origin allowlist + `X-GymPulse-Client` on cookie POSTs — verify: landing origin rejected
 - [ ] 3.5 CORS credentialed allowlist is admin+app only — verify: fixture
@@ -22,4 +22,17 @@
 
 ## 5. Integration verification
 
-- [ ] 5.1 migrate, bootstrap, login, me, refresh, logout against Postgres 16 (testcontainers) — verify: `go test` passes
+- [ ] 5.1 migrate, bootstrap, login, me, refresh, logout against local Postgres 16 (TEST_DATABASE_URL) — verify: `go test` passes
+
+## 6. Account and staff HTTP (MVP)
+
+- [ ] 6.1 `GET/PATCH /v1/me`, password change, forgot/reset, invite/accept — verify: OpenAPI operationIds; handlers after this change is applied
+- [ ] 6.2 `GET /v1/me/sessions` and revoke; owner/manager revoke-sessions — verify: HTTP tests
+- [ ] 6.3 Staff list/get/patch/roles/deactivate/reactivate; last owner protected — verify: receptionist cannot invite; last owner cannot be stripped
+- [ ] 6.4 Login rate limit 429 — verify: excess attempts 429, no user enumeration
+- [ ] 6.5 Audit events table + `GET /v1/audit-events` for owner/manager — verify: role change creates a row; member 403
+- [ ] 6.6 Gym/branch settings HTTP: `GET/PATCH /v1/gym`, branding, branches CRUD, hours, holidays — verify: receptionist cannot PATCH gym; member can GET public fields
+
+## 7. Later
+
+- [ ] 7.1 Email/phone verification start/confirm — verify: documented Later; token confirm marks verified without blocking MVP login

@@ -31,3 +31,11 @@ SMS and email SHALL be sent only through Go interfaces. The default drivers MUST
 - **WHEN** the email driver is the no-op/log default and the system would send mail
 - **THEN** no external SMTP call is required for the server to remain healthy
 - **AND** the notification intent is still recorded or logged
+
+### Requirement: Notification outbox
+The server SHALL persist notification intents in an outbox (table or equivalent) before attempting delivery. Password reset, staff invite, waitlist free-spot, and similar events MUST write an outbox row even when the email/SMS/push driver is no-op. Delivery workers MAY be Later; the outbox is the contract so domain handlers do not call vendors directly.
+
+#### Scenario: Reset enqueued
+- **WHEN** a password-reset is requested for a known user
+- **THEN** an outbox row exists with type and recipient
+- **AND** a missing SMTP vendor does not fail the HTTP request

@@ -7,7 +7,7 @@ Member photos and later progress photos need a storage interface before member p
 - `internal/storage` interface: Put, Get, Delete.
 - Local disk driver (`STORAGE_DRIVER=local`, `STORAGE_LOCAL_DIR`).
 - S3-compatible driver (endpoint, bucket, keys, region).
-- Photos private by default: authenticated download or short-lived server-issued signed URL only. No public bucket URLs.
+- Photos private by default: authenticated download or short-lived server-issued signed URL only. No public bucket URLs. HTTP: upload, metadata, content, signed URL, delete.
 - Wire config and a small health/smoke path (e.g. put/get in tests). Member photo HTTP lands with members; this change ships the drivers.
 
 ## Capabilities

@@ -34,3 +34,17 @@ Object access authorization SHALL be enforced by the Go server. Photos and other
 - **WHEN** a member or progress photo is stored
 - **THEN** unauthenticated clients cannot read the object
 - **AND** the only allowed reads are an authenticated API download or a short-lived signed URL issued by the server
+
+## ADDED Requirements
+
+### Requirement: File HTTP API
+The server SHALL expose authenticated file operations: `POST /v1/files` (upload), `GET /v1/files/{fileId}` (metadata), `GET /v1/files/{fileId}/content` (bytes), `POST /v1/files/{fileId}/signed-url` (short-lived URL), and `DELETE /v1/files/{fileId}`. Objects remain private by default. Authorization is gym-scoped and object-owner/staff as documented per object kind.
+
+#### Scenario: Upload then download
+- **WHEN** an authenticated user uploads a file and then downloads it with a valid token
+- **THEN** the bytes match
+- **AND** an unauthenticated download is denied
+
+#### Scenario: Signed URL expiry
+- **WHEN** a client uses a signed URL after it expires
+- **THEN** the server denies the download

@@ -1,13 +1,13 @@
 ## Context
 
-See proposal.md — Why. Depends on bootstrap-server and database-migrations. Caddy subdomains: `api.`, `admin.`, `app.`, root landing.
+See proposal.md — Why. Depends on bootstrap-server and database-migrations. Hostnames behind a native reverse proxy: `api.`, `admin.`, `app.`, root landing.
 
 ## Goals / Non-Goals
 
 **Goals:**
 - argon2id, JWT 15 min (golang-jwt/jwt/v5), opaque rotating refresh with family reuse detection
-- Cookie + CORS + CSRF for the Caddy layout
-- sqlc; UUIDv7; testcontainers; openapi.yaml auth paths
+- Cookie + CORS + CSRF for the native reverse-proxy layout
+- sqlc; UUIDv7; local Postgres tests (TEST_DATABASE_URL); openapi.yaml auth paths
 
 **Non-Goals:**
 - OAuth, frontend screens, member profile table
@@ -26,7 +26,7 @@ HS256, `AUTH_JWT_SECRET`, claims: `user_id`, `gym_id`, `staff_roles`, `has_membe
 
 Store only a hash. Each row has `family_id`. Rotate on refresh: insert new, mark old rotated. If a rotated token is presented, revoke all rows with that `family_id`.
 
-### Decision 4: Cookies on api. under the Caddy layout
+### Decision 4: Cookies on api. under a native reverse proxy
 
 Production hostnames:
 
@@ -55,6 +55,25 @@ JSON body refresh is fallback only (not used by first-party apps when cookies wo
 ## Migration Plan
 
 Additive. Down local-only.
+
+### Decision 6: Password change revokes other sessions
+
+`POST /v1/auth/password/change` revokes every refresh family for that user except the session that succeeded. Forgot-password reset revokes all families.
+
+### Decision 7: Gym settings HTTP lives here
+
+Gym/branch PATCH APIs need auth. Schema columns ship in database-migrations; handlers ship in this change.
+
+### Decision 8: Capability matrix (MVP)
+
+OpenAPI `x-gympulse-requires` is the documented matrix. Go enforces it.
+
+    public          login, refresh, forgot/reset, invite accept, bootstrap-owner, public lead POST
+    authenticated   me, gym GET (limited fields for members), file download of own objects
+    owner, manager  gym PATCH, staff invite/roles, audit log, member restore, void/refund, reports
+    receptionist    members CRUD (no restore), check-in, cash-up, class attendance, no gym PATCH
+    trainer         own clients, PT, workout logs for assigned, class attendance for own sessions
+    owning member   own profile, own check-in token, own bookings, own workouts, own invoices
 
 ## Open Questions
 

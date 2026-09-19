@@ -24,7 +24,7 @@ Photos are private by default. `GET /v1/files/{id}` with bearer auth, or a short
 
 ### Decision 3: Default local
 
-Compose uses local disk volume. S3 is config-only.
+Default is a local disk directory. S3 is config-only.
 
 ## Risks / Trade-offs
 

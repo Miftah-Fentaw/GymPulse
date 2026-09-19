@@ -1,6 +1,6 @@
 ## 1. Schema
 
-- [ ] 1.1 `attendance_events` and stable `member_code`; UUID PKs; timestamptz — verify: testcontainers migrate up
+- [ ] 1.1 `attendance_events` and stable `member_code`; UUID PKs; timestamptz — verify: migrate up via TEST_DATABASE_URL
 - [ ] 1.2 sqlc queries — verify: `make generate` includes sqlc
 
 ## 2. Signed QR
@@ -21,4 +21,15 @@
 
 ## 5. Integration verification
 
-- [ ] 5.1 Member with current membership: issue QR, consume, list today — verify: `go test` testcontainers Postgres 16
+- [ ] 5.1 Member with current membership: issue QR, consume, list today — verify: `go test` against local Postgres 16 (TEST_DATABASE_URL)
+
+## 6. Desk extras (MVP)
+
+- [ ] 6.1 `GET /v1/me/checkin-token` — verify: member only; token expires at 60s
+- [ ] 6.2 Attendance correction PATCH (owner/manager) + audit — verify: receptionist 403; voided event excluded from present
+- [ ] 6.3 `GET /v1/checkins/present` — verify: gym/branch scoped
+- [ ] 6.4 Honor Idempotency-Key on check-in POSTs in addition to the 15-minute window — verify: replay returns same event
+
+## 7. Later
+
+- [ ] 7.1 `GET /v1/checkins/peak-hours` — verify: documented Later; owner/manager only

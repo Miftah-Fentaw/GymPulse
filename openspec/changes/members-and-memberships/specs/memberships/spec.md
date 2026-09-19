@@ -41,3 +41,29 @@ The system SHALL treat a membership as expired when its end date has passed and 
 - **WHEN** a membership's end date is in the past and it was not renewed
 - **THEN** check-in and booking that require a current membership are denied
 - **AND** staff can still view the expired membership
+
+## ADDED Requirements
+
+### Requirement: Resume membership
+Staff SHALL resume a frozen membership via `POST /v1/memberships/{membershipId}/resume`, ending the freeze early. Access MUST resume when freeze rules allow.
+
+#### Scenario: Resume freeze
+- **WHEN** staff resume a frozen membership before the freeze end date
+- **THEN** the membership grants access again (if otherwise current)
+- **AND** the freeze is recorded as ended
+
+### Requirement: Renew membership
+Staff SHALL renew a current or recently expired membership via `POST /v1/memberships/{membershipId}/renew`. Renewal MUST issue an invoice when the plan is paid (billing-payments).
+
+#### Scenario: Renew
+- **WHEN** staff renew an eligible membership
+- **THEN** the end or next-renewal date is extended by the plan period
+- **AND** an invoice is issued for a paid plan
+
+### Requirement: Expiring memberships list
+Staff SHALL list memberships expiring within a configurable window (query `within_days`) via `GET /v1/memberships/expiring`.
+
+#### Scenario: Expiring soon
+- **WHEN** a receptionist lists expiring memberships within 7 days
+- **THEN** memberships whose end date falls in that window are included
+- **AND** already expired or cancelled memberships are omitted unless documented otherwise

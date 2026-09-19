@@ -54,3 +54,15 @@ Staff SHALL be able to attach a profile photo to a member. Members and assigned 
 #### Scenario: Public URL is not used
 - **WHEN** a client tries to fetch a member photo without authentication and without a valid signed URL
 - **THEN** the server denies the request
+
+### Requirement: File HTTP API
+The server SHALL expose authenticated file operations: `POST /v1/files` (upload), `GET /v1/files/{fileId}` (metadata), `GET /v1/files/{fileId}/content` (bytes), `POST /v1/files/{fileId}/signed-url` (short-lived URL), and `DELETE /v1/files/{fileId}`. Objects remain private by default. Authorization is gym-scoped and object-owner/staff as documented per object kind.
+
+#### Scenario: Upload then download
+- **WHEN** an authenticated user uploads a file and then downloads it with a valid token
+- **THEN** the bytes match
+- **AND** an unauthenticated download is denied
+
+#### Scenario: Signed URL expiry
+- **WHEN** a client uses a signed URL after it expires
+- **THEN** the server denies the download

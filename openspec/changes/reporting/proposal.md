@@ -4,7 +4,7 @@ Owners need revenue, churn, and active-member numbers without waiting for the re
 
 ## What Changes
 
-- Report endpoints for owner/manager: revenue, churn, active members, attendance summary.
+- Report endpoints for owner/manager: revenue, churn, active members, attendance summary, new signups, class utilization, CSV/JSON export.
 - Gym- and optional branch-scoped aggregates from GymPulse tables (not an external processor).
 - No frontend in this change (admin-app-complete consumes it).
 

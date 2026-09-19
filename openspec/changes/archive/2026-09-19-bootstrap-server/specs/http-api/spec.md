@@ -1,11 +1,9 @@
-## Purpose
-
-OpenAPI 3.1 is the source of truth for the GymPulse HTTP API under /v1, driving Go server codegen and the shared TypeScript client.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Spec-first OpenAPI
 The repository SHALL keep a versioned `openapi.yaml` (OpenAPI 3.1) that describes all `/v1` HTTP operations. Generated Go artifacts MUST be produced from that file via oapi-codegen (chi server, strict handlers). Hand-written duplicates of those types MUST NOT be the source of truth.
+
+This slice generates Go only. TypeScript client generation is deferred to admin-app-core.
 
 #### Scenario: Generate from spec
 - **WHEN** an operator runs `make generate`
@@ -24,20 +22,7 @@ The server SHALL validate incoming requests against the OpenAPI schema before ha
 - **THEN** the handler is not invoked
 - **AND** the response is a 4xx with the standard error JSON
 
-### Requirement: Shared TypeScript client
-admin, app, and landing SHALL call the API through `packages/api-client` generated with openapi-typescript and openapi-fetch. They MUST NOT hand-roll fetch wrappers that bypass those types for `/v1` resources. TypeScript generation lands with the first frontend workspace, not the server bootstrap.
-
-#### Scenario: Admin uses generated client
-- **WHEN** the admin app loads members
-- **THEN** the call goes through packages/api-client
-
-#### Scenario: Generate TypeScript client
-- **WHEN** an operator runs `make generate` after the frontend workspace exists
-- **THEN** `packages/api-client` is written from `openapi.yaml` using openapi-typescript and openapi-fetch
-
-#### Scenario: CI detects TypeScript generate drift
-- **WHEN** CI runs generate and the TypeScript generated files differ from the working tree
-- **THEN** the check fails
+## ADDED Requirements
 
 ### Requirement: Cursor pagination
 List endpoints under `/v1` SHALL paginate with an opaque `cursor` and a `limit` (default 20, maximum 100). Report endpoints MAY use offset pagination. Responses MUST include `items` and `next_cursor` (null when no further page exists).

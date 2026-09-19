@@ -4,7 +4,7 @@ Group classes are a core gym product. Members need to book without overbooking; 
 
 ## What Changes
 
-- Class sessions: branch, time, capacity, optional trainer.
+- Class types, recurring schedules, sessions (branch, time, capacity, optional trainer), waitlist, session attendance. Rooms/equipment later.
 - Member book/cancel; staff cancel; capacity enforced on the server.
 - Booking requires `MembershipGrantsAccess`.
 

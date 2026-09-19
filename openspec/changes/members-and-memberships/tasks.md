@@ -21,4 +21,11 @@
 ## 5. OpenAPI and integration
 
 - [ ] 5.1 Update `openapi.yaml` for members, plans, memberships, leads and `make generate` — verify: generate is clean
-- [ ] 5.2 Staff create member, assign plan, freeze, convert a lead — verify: `go test` with testcontainers Postgres 16
+- [ ] 5.2 Staff create member, assign plan, freeze, convert a lead — verify: `go test` against local Postgres 16 (TEST_DATABASE_URL)
+
+## 6. Directory extras (MVP)
+
+- [ ] 6.1 Member search/filters, restore, notes, emergency contact — verify: HTTP tests; member cannot read staff notes
+- [ ] 6.2 CSV export/import (import dry-run) — verify: other gym omitted; duplicate email rejected
+- [ ] 6.3 Resume, renew, expiring list — verify: freeze resume grants access; renew issues invoice hook
+- [ ] 6.4 Lead follow-up notes — verify: public POST cannot add notes

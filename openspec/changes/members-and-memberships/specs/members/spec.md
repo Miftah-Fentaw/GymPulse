@@ -34,3 +34,45 @@ A member SHALL have a status (at least active and archived). Archived members MU
 - **WHEN** a manager or owner archives a member
 - **THEN** the member no longer appears in the default active member list
 - **AND** past attendance and invoices for that member remain queryable by staff
+
+## ADDED Requirements
+
+### Requirement: Member search and filters
+Staff member list SHALL support search (`q` against name, email, phone, member_code) and filters for status, branch, and plan. Default list is active members. Results MUST be cursor-paginated.
+
+#### Scenario: Search by code
+- **WHEN** a receptionist lists members with q equal to a member_code
+- **THEN** that member is in the result
+- **AND** unrelated members are not required to appear
+
+### Requirement: Restore archived member
+Owner and manager SHALL restore an archived member via `POST /v1/members/{memberId}/restore`. Restore MUST NOT by itself grant check-in access; a current membership is still required.
+
+#### Scenario: Restore
+- **WHEN** a manager restores an archived member
+- **THEN** the member appears in the default active list
+- **AND** history rows are unchanged
+
+### Requirement: Member notes
+Owner, manager, and receptionist SHALL add and list internal notes on a member. Members MUST NOT read staff notes.
+
+#### Scenario: Staff note
+- **WHEN** a receptionist posts a note on a member
+- **THEN** staff of that gym can list it
+- **AND** the member cannot read it
+
+### Requirement: Emergency contact
+Member profiles SHALL store optional emergency contact name and phone. Staff and the owning member MAY read them. Another member MUST NOT.
+
+#### Scenario: Patch emergency contact
+- **WHEN** staff or the member sets emergency contact fields
+- **THEN** a later GET of that member includes them
+- **AND** another member's GET is denied
+
+### Requirement: Member CSV import and export
+Owner and manager SHALL export the gym's members as CSV and import a CSV (with a dry-run query). Import MUST be gym-scoped, MUST reject duplicate emails in the gym, and MUST NOT create users in another gym.
+
+#### Scenario: Export
+- **WHEN** a manager exports members
+- **THEN** the CSV includes that gym's members
+- **AND** another gym's members are omitted

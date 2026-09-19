@@ -22,8 +22,7 @@ context: |
     landing/             Astro public site (React islands)
     packages/api-client  Generated OpenAPI TypeScript client
     openapi.yaml         OpenAPI 3.1 source of truth for HTTP /v1
-    Makefile             dev, test, lint, generate, build (migrate-* from
-                         database-migrations)
+    Makefile             dev, run, test, lint, generate, build, migrate-*, db-create
     openspec/            Specs, changes, and this project context
 
   Go module path: gympulse-server (cmd/gympulse).
@@ -33,23 +32,23 @@ context: |
   ## How to run everything locally
 
   1. Copy `.env.example` to `.env` and set secrets (at least DATABASE_URL,
-     AUTH_JWT_SECRET). Compose defaults are listed in `.env.example`.
-     DATABASE_URL MUST be a direct or session-mode Postgres URL. Do not use
-     a transaction-mode pooler. Supabase is not a supported target.
-  2. `make generate` — oapi-codegen (sqlc and openapi-typescript are added
+     AUTH_JWT_SECRET). DATABASE_URL MUST be a direct or session-mode
+     Postgres URL. Do not use a transaction-mode pooler. Supabase is not
+     a supported target.
+  2. Install PostgreSQL 16+ on the host (see README for Fedora). Create
+     the gympulse role once (CREATEDB). `make db-create` creates the app
+     database if missing.
+  3. `make generate` — oapi-codegen (sqlc and openapi-typescript are added
      by later changes).
-  3. `make migrate-up` — after database-migrations; apply embedded
-     migrations (or rely on compose).
-  4. `make dev` — docker-compose. bootstrap-server: postgres:16 and
-     server. database-migrations adds the scheduled backup job.
-     admin-app-core adds Caddy (api., admin., app., landing).
-  5. `make test` — Go tests via testcontainers-go (Postgres 16) plus
-     frontend lint/unit as configured.
-  6. `make lint` and `make build`.
+  4. `make migrate-up` — apply embedded migrations.
+  5. `make dev` — `go run ./cmd/gympulse` with `.env` loaded.
+  6. `make test` — Go tests against local Postgres 16 via TEST_DATABASE_URL
+     (`gympulse_test_*` databases). Do not mock the database.
+  7. `make lint` and `make build`.
 
-  Subdomains (Caddy, automatic HTTPS in production, from admin-app-core):
-  api.<domain>, admin.<domain>, app.<domain>, and the root domain for
-  landing.
+  TLS and static apps: install Caddy or nginx on the host
+  (`docs/reverse-proxy.md`). Suggested hostnames: api.<domain>,
+  admin.<domain>, app.<domain>, and the root domain for landing.
 
   ## Core architecture (non-negotiable)
 
@@ -69,15 +68,16 @@ context: |
 
   ## Database and migrations
 
-  - PostgreSQL **16+**. Compose uses postgres:16. UUIDv7 generated in Go.
+  - PostgreSQL **16+** installed on the host. UUIDv7 generated in Go.
   - Single DATABASE_URL (direct Postgres or session-mode pooler only;
     never a transaction-mode pooler). Default schema (`public`). No
     search_path tricks. Supabase is not a supported target.
   - SQL files in server/migrations/, goose Provider API + Postgres session
     locker, go:embed. AUTO_MIGRATE defaults to false.
-  - Commands: gympulse migrate up | down | status (also `make migrate-*`).
+  - Commands: gympulse migrate up | down | status, gympulse db create
+    (also `make migrate-*` and `make db-create`).
   - **Forward-only in production.** `down` is for local development only;
-    production rollback is restore from the scheduled pg_dump.
+    production rollback is restore from a documented pg_dump.
   - gyms row includes IANA time zone and ISO currency code.
 
   ## API contract (spec-first)
@@ -109,8 +109,8 @@ context: |
     startup, fail-fast on missing or invalid values.
   - Logging: slog JSON with request IDs. Keep GET /health and GET /ready.
   - HTTP: chi. Queries: sqlc + pgx (default protocol).
-  - Tests: testcontainers-go with real Postgres 16 for DB and integration
-    tests. Do not mock the database.
+  - Tests: local PostgreSQL 16 via TEST_DATABASE_URL and gympulse_test_*
+    databases. Do not mock the database. Do not use Docker or testcontainers.
   - IDs: UUIDv7 in Go. Plural snake_case tables.
   - Lint: gofmt + golangci-lint. Commits: Conventional Commits.
   - Branches: feat/<openspec-change-name>
@@ -180,7 +180,7 @@ operations:
       - Do not implement until the user explicitly asks to apply the change
       - Build backend first; do not start frontend feature work until the matching server API exists
       - Update openapi.yaml for any new or changed HTTP endpoint, then make generate
-      - PostgreSQL only; generate UUIDv7 in Go; argon2id; no DB mocks (testcontainers)
+      - PostgreSQL only; generate UUIDv7 in Go; argon2id; no DB mocks; local Postgres via TEST_DATABASE_URL
       - React + Vite for admin/app; Astro + React islands for landing; i18n catalogs only
       - Follow the change order in project context
   archive:

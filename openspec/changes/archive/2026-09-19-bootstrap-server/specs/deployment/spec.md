@@ -1,11 +1,9 @@
-## Purpose
-
-Deploy GymPulse as a single Go binary against native PostgreSQL 16+. The Go server is the only database client. Supabase is not a supported target. This repository does not include Docker, Compose, or container runtimes.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Environment-based configuration
 Runtime configuration SHALL be loaded from the environment into a typed struct and validated at startup. A documented `.env.example` MUST list every variable the server reads, including `DATABASE_URL` and `TEST_DATABASE_URL`. Missing or invalid values MUST fail fast.
+
+This slice MUST load at least: `HTTP_ADDR`, `LOG_LEVEL`, `DATABASE_URL`.
 
 #### Scenario: Start with env
 - **WHEN** an operator copies `.env.example`, sets required secrets, and starts the server
@@ -31,21 +29,6 @@ A production deploy SHALL be: build one Go binary (`make build`), provide `DATAB
 - **WHEN** an operator installs the example unit and environment file
 - **THEN** documentation shows `ExecStart` pointing at the gympulse binary
 - **AND** `DATABASE_URL` is supplied via the environment file
-
-### Requirement: Native reverse proxy
-TLS and static frontends SHALL be served by Caddy or nginx installed on the host, or equivalent. Reverse proxy is a documented option, not a process started from this repository. The Go server MAY remain API-only.
-
-#### Scenario: Documented hostnames
-- **WHEN** an operator reads reverse-proxy docs
-- **THEN** they are shown how to proxy `api.` to the Go process and serve admin, app, and landing as static files
-
-### Requirement: Scheduled database backups
-Documentation SHALL include a `pg_dump` cron example with retention and restore steps. Production rollback is restore from those dumps, not `migrate down`. The repository MUST NOT ship a backup container.
-
-#### Scenario: Documented dump
-- **WHEN** an operator follows backup docs
-- **THEN** they can schedule `pg_dump` of `DATABASE_URL`
-- **AND** they are told how to restore and that `migrate down` is local-only
 
 ### Requirement: Health check
 The server SHALL expose `GET /health` (liveness, no DB) and `GET /ready` (database ping) so a reverse proxy and operators can probe it. When the readiness ping fails, the server MUST log the underlying error at warn level. The HTTP response MUST NOT include that error string.
@@ -116,6 +99,8 @@ DB tests SHALL use a real local PostgreSQL 16 via `TEST_DATABASE_URL` (CREATEDB)
 - **WHEN** a DB test runs with a valid TEST_DATABASE_URL
 - **THEN** it uses a `gympulse_test_*` database that is dropped after the test
 
+## ADDED Requirements
+
 ### Requirement: Structured JSON logging
 The server SHALL emit slog JSON logs with a request ID on request logs. Logs MUST NOT include passwords, JWT secrets, or database URLs with credentials.
 
@@ -136,11 +121,3 @@ The server SHALL stop accepting new connections on SIGINT/SIGTERM, finish in-fli
 - **WHEN** the process receives SIGTERM
 - **THEN** it shuts down the HTTP server
 - **AND** it closes the database pool
-
-### Requirement: Frontends never touch the database
-admin, app, and landing SHALL be configurable with only the public API origin (and similar public settings). They MUST NOT accept a Postgres URL.
-
-#### Scenario: Admin env
-- **WHEN** an operator deploys the admin app
-- **THEN** configuration is the GymPulse API origin
-- **AND** no DATABASE_URL is required

@@ -4,7 +4,7 @@ Trainers need a client list that is not the whole gym. Assignments are how coach
 
 ## What Changes
 
-- Trainer–member assignments, gym-scoped.
+- Trainer–member assignments, gym-scoped; trainer profiles, availability, PT booking, trainer notes. Commission later.
 - Trainer APIs that list and read only assigned members.
 - Owner/manager manage assignments; receptionist read-only.
 
