@@ -1,0 +1,184 @@
+schema: spec-driven
+
+# Shown to AI when creating artifacts. Keep in sync with AGENTS.md.
+context: |
+  # GymPulse
+
+  GymPulse is a self-hostable gym management product. A gym owner deploys
+  their own instance. It covers members and memberships, check-in and
+  attendance, payments and billing, class scheduling and booking, trainers
+  and coaches, workout and progress tracking, and business reports.
+
+  One gym per deployment. The data model includes gym and branch from day
+  one; the MVP runs a single gym with a single branch. Multi-branch comes
+  later without a schema rewrite.
+
+  ## Repository layout
+
+  gympulse/
+    server/    Go backend — single source of truth, owns the database schema
+    admin/     Admin/staff dashboard (owner, manager, receptionist)
+    app/       PWA for members AND trainers/coaches (role-based views)
+    landing/   Public site for a deployed gym (plans, schedule, contact, trial signup)
+    openspec/  Specs, changes, and this project context
+
+  Frontends are separate deployable projects. They talk only to the server REST API.
+
+  Go module path: gympulse-server (cmd/gympulse).
+
+  ## Core architecture (non-negotiable)
+
+  - The Go server is the only process that talks to the database.
+  - admin, app, and landing MUST use the server REST API only.
+  - No frontend may use the Supabase client, Supabase Auth, PostgREST, or
+    Supabase Realtime directly.
+  - Database portability is a hard requirement. The same source deploys on
+    Supabase or plain PostgreSQL by changing DATABASE_URL and a few env vars.
+    No code changes. Server, frontends, and business logic MUST NOT know
+    which provider is in use.
+  - Treat Supabase purely as hosted Postgres:
+    - No references to auth.users
+    - No Supabase-only extensions or functions
+    - No dependence on RLS for correctness — authorization is enforced in Go
+    - Standard Postgres plus widely available extensions only (e.g. pgcrypto)
+    - UUIDs via gen_random_uuid() or generated in Go
+    - Runtime queries use pgx (pgxpool)
+  - Auth is owned by the Go server: password login, short-lived JWT access
+    tokens plus refresh tokens, roles (owner, manager, receptionist, trainer,
+    member). No Supabase Auth. One role per user account in the MVP.
+  - BaaS-style concerns go behind Go interfaces with swappable drivers:
+    - File storage: local disk driver and S3-compatible driver (covers
+      Supabase Storage via its S3 endpoint)
+    - Realtime and notifications: SSE or WebSocket from the server, plus web
+      push for the PWA
+    - SMS, email, and payment gateways: interfaces with a manual or no-op default
+  - Every domain row that belongs to a gym is scoped by gym_id (and branch_id
+    where the concept is branch-local).
+
+  ## Database setup and migrations
+
+  The Go server owns and builds the schema. Nobody runs SQL by hand.
+
+  - Versioned plain-SQL files in server/migrations/ (0001_init.sql, 0002_..., …)
+  - Migration library: goose, used as a library inside the server (not the
+    goose CLI as a deploy dependency). Why goose: first-class embed.FS,
+    sequential versions that match 0001_init.sql, Postgres advisory locking,
+    and a configurable table name so tracking lives in gympulse.goose_db_version.
+    SQL-only migrations; no Go migration functions for schema.
+  - Files are embedded with go:embed so a deployed binary carries its schema.
+  - Two ways to run them:
+    - Subcommand: gympulse migrate up | down | status
+    - AUTO_MIGRATE=true runs pending migrations on startup
+    - Concurrent instances MUST be safe (Postgres advisory locks)
+  - The exact same migrations run unchanged on plain Postgres and on Supabase.
+    Setting DATABASE_URL and starting the server is enough to build the database.
+  - All application tables live in schema "gympulse", created with
+    CREATE SCHEMA IF NOT EXISTS. The goose tracking table lives in that schema
+    too. Reason: Supabase exposes public via PostgREST with the anon key;
+    custom schemas are not exposed by default. This is plain SQL and identical
+    on any Postgres.
+  - Defense in depth: ENABLE ROW LEVEL SECURITY with no policies on every
+    table. Do NOT use FORCE ROW LEVEL SECURITY. The server connects as the
+    table owner (or a BYPASSRLS role). On Supabase that is the postgres role;
+    on plain Postgres the migration user owns the schema. Correctness MUST
+    never depend on RLS.
+  - Supabase connection rules:
+    - Migrations need a session-level connection: direct or session pooler
+      (port 5432). NEVER migrate through the transaction pooler (port 6543).
+    - Direct connections are IPv6-only unless the project has the IPv4 add-on.
+      Where IPv4 is required, use the session pooler connection string.
+    - Runtime queries MAY use the transaction pooler. Configure pgx with the
+      simple protocol / no cached prepared statements.
+    - MIGRATION_DATABASE_URL falls back to DATABASE_URL when unset.
+  - Optional: generate schema.sql from migrations (CI or pg_dump --schema-only
+    against a fresh DB) for pasting into the Supabase SQL editor. Migrations
+    remain the source of truth.
+
+  ## Deployment
+
+  - docker-compose with a profile that includes a local Postgres container,
+    and a profile that expects an external DATABASE_URL (Supabase or any
+    hosted Postgres). Document both in the README, including the Supabase
+    connection-string guidance above.
+  - Config is env-based (12-factor), with a documented .env.example.
+
+  ## Workflow
+
+  - Backend first. Do not start frontend feature work until the server slice
+    exists. Order: schema and server → admin → PWA → landing.
+  - Every non-trivial change goes through an OpenSpec proposal first
+    (proposal, tasks, and spec deltas). The user approves before implementation.
+  - Keep changes small and independently shippable.
+  - Keep tasks in tasks.md checkable, with verification on each task.
+  - Archive a change only after it is implemented and the user confirms.
+
+  ## Conventions (locked for this project)
+
+  Go layout:
+    server/cmd/gympulse/     main + migrate subcommand
+    server/internal/config   env config
+    server/internal/http     chi router, middleware, health
+    server/internal/db       pgx pool, pooler-aware settings
+    server/internal/migrate  embedded goose runner
+    server/internal/<domain> handler → service → repository
+    server/migrations/
+
+  - HTTP framework: chi (stdlib-compatible, explicit middleware)
+  - Logging: log/slog
+  - Queries: sqlc + pgx. Hand-written SQL in queries/; sqlc generates typed
+    Go. Repositories wrap sqlc. No ORM.
+  - API: REST under /v1, JSON with snake_case fields
+  - Errors: { "error": { "code": "member_not_found", "message": "...", "details": {} } }
+    plus the matching HTTP status
+  - Pagination: limit + opaque cursor. Offset/page only for reports that
+    need random access.
+  - Time: RFC 3339 UTC on the wire; gym-local timezone stored on the gym
+  - Auth header: Authorization: Bearer <access_jwt>
+  - Refresh: POST /v1/auth/refresh. Admin may use an httpOnly Secure cookie;
+    the PWA may send the refresh token in the JSON body. Both MUST work.
+  - SQL: snake_case, plural table names (members, memberships), UUIDv4 PKs
+  - Lint: gofmt + golangci-lint
+  - Commits: Conventional Commits, scoped (feat(auth): ...)
+  - Branches: feat/<openspec-change-name>
+  - Tests: run embedded migrations against a plain Postgres container for the
+    DB suite; also verify against a transaction-pooler-style connection
+    (PgBouncer transaction mode or a Supabase pooled URL). Service unit tests
+    use a repository interface and do not need a database.
+
+  Frontend (chosen default; already scaffolded):
+    - admin: Vue 3 + Vite + TypeScript + Vue Router + Pinia + Tailwind
+    - app:   same, plus vite-plugin-pwa (web push later)
+    - landing: Vue 3 + Vite + TypeScript (static-friendly public site)
+    No frontend talks to Postgres or Supabase directly.
+
+  ## Out of scope until a later change
+
+  Payment gateway charge APIs (interface + manual/no-op only at first),
+  SMS delivery, multi-branch UX, multi-gym SaaS tenancy, native mobile apps.
+
+rules:
+  proposal:
+    - Keep proposals under two pages
+    - Keep changes small and independently shippable
+    - Backend slices land before the frontend that consumes them
+    - Do not start implementation in the same turn as planning
+  specs:
+    - Use SHALL/MUST; every requirement needs at least one WHEN/THEN scenario
+    - Specs describe observable behavior, not chi/sqlc/Vue internals
+  tasks:
+    - Every checkbox includes how to verify it
+    - Tasks small enough for one sitting
+  design:
+    - Record why goose, chi, sqlc, and the dedicated gympulse schema were chosen when those decisions are in scope
+
+operations:
+  apply:
+    guidance:
+      - Do not implement until the user explicitly asks to apply the change
+      - Build backend first; do not start frontend feature work until the matching server API exists
+      - Never add a Supabase client, Supabase Auth, PostgREST, or Realtime usage in any app
+      - Never put application tables in public; never reference auth.users
+  archive:
+    guidance:
+      - Archive only after implementation is complete and the user confirms
+      - Summarize what merged into main specs before finishing
