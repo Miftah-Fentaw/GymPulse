@@ -5,16 +5,17 @@ Self-hostable gym management. Spec-driven with OpenSpec.
 ## Before you change behavior
 
 1. Read `openspec/config.yaml` (project context) and the relevant files under `openspec/specs/`.
-2. Every non-trivial change needs an OpenSpec proposal (`proposal.md`, spec deltas, `design.md`, `tasks.md`). Wait for the user to approve before implementing.
-3. Keep changes small and independently shippable. Archive when the user confirms the work is done.
+2. Every non-trivial change needs an OpenSpec proposal. Wait for the user to approve before implementing.
+3. Apply changes in the order listed in `openspec/config.yaml`.
+4. HTTP changes update `openapi.yaml` and `make generate`.
 
 ## Architecture that you must not violate
 
-- `server/` (Go) is the only database client and the only place authorization is enforced.
-- `admin/`, `app/`, and `landing/` are separate frontends. They talk only to the server REST API.
-- Never use the Supabase client, Supabase Auth, PostgREST, or Supabase Realtime from a frontend (or from Go). Supabase is hosted Postgres.
-- Schema lives in `server/migrations/`, schema `gympulse`, embedded and applied by the server. Identical migrations on plain Postgres and Supabase.
-- Backend first: server → admin → PWA → landing.
+- `server/` (Go) is the only database client. Authorization is enforced in Go.
+- Frontends talk only to the REST API via `packages/api-client` (from `openapi.yaml`).
+- PostgreSQL 16+, default schema, single `DATABASE_URL`, UUIDv7 in Go.
+- admin/app: React + Vite. landing: Astro with React islands.
+- Backend first. Local run: `make generate && make migrate-up && make dev`.
 
 ## OpenSpec commands
 
@@ -24,5 +25,3 @@ Self-hostable gym management. Spec-driven with OpenSpec.
 | `/opsx-explore` | Think through a problem without writing code |
 | `/opsx-apply` | Implement tasks from an approved change |
 | `/opsx-archive` | Archive a completed change into main specs |
-
-Planning lives in `openspec/changes/<name>/`. Main specs live in `openspec/specs/`.
