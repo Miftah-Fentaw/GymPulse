@@ -1,0 +1,25 @@
+name: server
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: Generate
+        run: make generate
+
+      - name: Generated Go is up to date
+        run: git diff --exit-code
+
+      - name: Lint
+        run: make lint
