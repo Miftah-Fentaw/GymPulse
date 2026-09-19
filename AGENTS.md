@@ -15,7 +15,7 @@ Self-hostable gym management. Spec-driven with OpenSpec.
 - Frontends talk only to the REST API via `packages/api-client` (from `openapi.yaml`).
 - PostgreSQL 16+, default schema, single `DATABASE_URL`, UUIDv7 in Go.
 - admin/app: React + Vite. landing: Astro with React islands.
-- Backend first. Local run: `make generate && make migrate-up && make dev`.
+- Backend first. Local run: `make generate && make db-create && make migrate-up && make dev`.
 
 ## OpenSpec commands
 
