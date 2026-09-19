@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"gympulse-server/internal/db"
 	"gympulse-server/internal/testutil"
 )
 
@@ -75,17 +74,10 @@ func TestReady503WithoutPool(t *testing.T) {
 }
 
 func TestReadyAgainstPostgres16(t *testing.T) {
-	url := testutil.PostgresURL(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	pool, err := db.NewPool(ctx, url)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(pool.Close)
+	pool := testutil.Pool(t)
 
 	var buf bytes.Buffer
-	h, err := newRouter(testLogger(&buf), &apiImpl{pool: pool})
+	h, err := newRouter(testLogger(&buf), &apiImpl{pool: pool, log: testLogger(&buf)})
 	if err != nil {
 		t.Fatal(err)
 	}

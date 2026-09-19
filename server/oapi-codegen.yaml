@@ -5,3 +5,8 @@ generate:
   chi-server: true
   strict-server: true
   embedded-spec: true
+output-options:
+  include-operation-ids:
+    - getHealth
+    - getReady
+    - postEcho

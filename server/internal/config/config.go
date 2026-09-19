@@ -12,6 +12,7 @@ type Config struct {
 	HTTPAddr    string `env:"HTTP_ADDR" envDefault:":8080"`
 	LogLevel    string `env:"LOG_LEVEL" envDefault:"info"`
 	DatabaseURL string `env:"DATABASE_URL,required,notEmpty"`
+	AutoMigrate bool   `env:"AUTO_MIGRATE" envDefault:"false"`
 }
 
 func Load() (Config, error) {

@@ -28,11 +28,12 @@ type Server struct {
 
 type apiImpl struct {
 	pool       *pgxpool.Pool
+	log        *slog.Logger
 	echoCalled atomic.Bool
 }
 
 func New(addr string, log *slog.Logger, pool *pgxpool.Pool) (*Server, error) {
-	handler, err := newRouter(log, &apiImpl{pool: pool})
+	handler, err := newRouter(log, &apiImpl{pool: pool, log: log})
 	if err != nil {
 		return nil, err
 	}
@@ -118,12 +119,22 @@ func (a *apiImpl) GetHealth(_ context.Context, _ api.GetHealthRequestObject) (ap
 
 func (a *apiImpl) GetReady(ctx context.Context, _ api.GetReadyRequestObject) (api.GetReadyResponseObject, error) {
 	if a.pool == nil {
+		a.warnReady(errors.New("database pool is nil"))
 		return api.GetReady503JSONResponse{Status: api.ReadyResponseStatusNotReady}, nil
 	}
 	if err := a.pool.Ping(ctx); err != nil {
+		a.warnReady(err)
 		return api.GetReady503JSONResponse{Status: api.ReadyResponseStatusNotReady}, nil
 	}
 	return api.GetReady200JSONResponse{Status: api.ReadyResponseStatusOk}, nil
+}
+
+func (a *apiImpl) warnReady(err error) {
+	log := a.log
+	if log == nil {
+		log = slog.Default()
+	}
+	log.Warn("readiness ping failed", "err", err)
 }
 
 func (a *apiImpl) PostEcho(_ context.Context, request api.PostEchoRequestObject) (api.PostEchoResponseObject, error) {
