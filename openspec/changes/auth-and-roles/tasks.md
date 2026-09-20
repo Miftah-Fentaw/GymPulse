@@ -10,6 +10,7 @@
 
 ## 3. HTTP
 
+- [ ] 3.0 Stage-1 openapi.yaml audit: fix status codes, media types, param types, shared components, enums, CursorPageBase, error envelope — verify: `make generate` produces no diff on health/ready/echo; `openspec validate --all --strict` passes
 - [ ] 3.1 Document login/refresh/logout/me in `openapi.yaml` and `make generate` — verify: generate has no unexpected diff; handlers are oapi-codegen strict
 - [ ] 3.2 Login sets host-only refresh cookie for api host; returns access token + capabilities — verify: HTTP test against local Postgres 16 (TEST_DATABASE_URL)
 - [ ] 3.3 Refresh rotates; reuse of old token revokes the family — verify: third call with first token fails family

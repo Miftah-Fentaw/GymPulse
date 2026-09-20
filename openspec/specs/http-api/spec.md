@@ -53,20 +53,38 @@ List endpoints under `/v1` SHALL paginate with an opaque `cursor` and a `limit` 
 - **AND** it does not repeat the previous page's items
 
 ### Requirement: Idempotency keys
-Unsafe POST operations that create money or attendance side effects SHALL honor an `Idempotency-Key` header. Replays of the same key and equivalent body within the documented window MUST return the original result without a second side effect.
+Unsafe POST operations that create money or attendance side effects SHALL honor an `Idempotency-Key` header (8–128 characters). Keys are scoped per authenticated user + endpoint and expire after 24 hours. Same key with the same body MUST replay the original HTTP status code and response body with an added `Idempotent-Replayed: true` header and no second side effect. Same key with a different body MUST return 422 with `error.code: idempotency_conflict`.
 
 #### Scenario: Payment replay
-- **WHEN** staff POST a payment twice with the same Idempotency-Key and body
+- **WHEN** staff POST a payment twice with the same Idempotency-Key and identical body
 - **THEN** only one payment row exists
-- **AND** both responses refer to that payment
+- **AND** both responses return the same status code and body
+- **AND** the second response includes `Idempotent-Replayed: true`
+
+#### Scenario: Idempotency conflict
+- **WHEN** a client POSTs with the same Idempotency-Key but a different body
+- **THEN** the server returns 422 with error.code idempotency_conflict
+- **AND** no second side effect is created
 
 ### Requirement: Error envelope and rate limits
-Every error response SHALL use `{ "error": { "code", "message", "details" } }`. Public auth and lead capture endpoints SHALL be rate-limited and return 429 with that envelope when exceeded.
+Every error response SHALL use `{ "error": { "code": str, "message": str, "request_id": str, "details": {} } }`. Validation errors MUST include `details.fields: [{ "field": str, "code": str, "message": str }]`. Public auth and lead capture endpoints SHALL be rate-limited and return 429 with that envelope and a `Retry-After` header when exceeded.
 
 #### Scenario: Rate limited login
 - **WHEN** a client exceeds the login attempt limit
-- **THEN** the server returns 429 with the standard error envelope
+- **THEN** the server returns 429 with the standard error envelope and a Retry-After header
 - **AND** no session is created
+
+#### Scenario: Validation error with field detail
+- **WHEN** a client posts a body with a missing required field
+- **THEN** the server returns 400 with error.details.fields listing the offending field
+
+### Requirement: API conventions
+The API SHALL follow these locked conventions throughout: IDs are UUID v7 (generated in Go); timestamps are RFC 3339 UTC; dates are ISO 8601; times for schedule slots are HH:MM in the gym's IANA time zone; weekday integers are ISO 8601 (Monday=1, Sunday=7); money is int64 minor units with a `currency` (ISO 4217) field on the parent resource; all enum values are lower_snake_case; every resource has `id`, `created_at`, `updated_at`; archivable resources have `archived_at` (nullable).
+
+#### Scenario: Money field encoding
+- **WHEN** a client reads an invoice
+- **THEN** all monetary amounts are integers in the currency's minor unit
+- **AND** a `currency` field specifies the ISO 4217 code
 
 ### Requirement: Planned operations in OpenAPI
 `openapi.yaml` SHALL list domain `/v1` operations (including those not yet implemented). oapi-codegen SHALL generate handlers only for implemented `operationId`s via `include-operation-ids` until the owning change is applied. Applying a change MUST add its operationIds to that list and implement the handlers.

@@ -174,6 +174,44 @@ rules:
   design:
     - Record why goose Provider, chi, sqlc, oapi-codegen, TanStack Router, and Astro were chosen when those decisions are in scope
 
+conventions: |
+  ## API Conventions (Section B — locked)
+
+  ### Identifiers and timestamps
+  - All resource ids are UUID v7, generated in Go.
+  - Timestamps are RFC 3339 UTC (`date-time` format).
+  - Dates are ISO 8601 (`date` format, e.g. `2024-01-15`).
+  - Times (schedule slots, business hours) are `"HH:MM"` in the gym/branch local IANA time zone.
+  - Weekday integers follow ISO 8601: Monday = 1, Sunday = 7.
+
+  ### Money
+  - All monetary amounts are int64 in the currency's minor unit (e.g. cents), field suffix `_minor`.
+  - The parent resource carries a `currency` field (ISO 4217 uppercase, e.g. `"USD"`).
+  - No floats anywhere in the API.
+
+  ### Enums
+  - All enum values are `lower_snake_case`.
+
+  ### Resources
+  - Every resource has `id`, `created_at`, and `updated_at`.
+  - Archivable resources have `archived_at` (nullable).
+
+  ### Errors
+  - All errors use `{ "error": { "code": str, "message": str, "request_id": str, "details": {...} } }`.
+  - Validation errors include `details.fields: [{ "field": str, "code": str, "message": str }]`.
+  - `429` responses include a `Retry-After` header (seconds).
+
+  ### Idempotency
+  - POST operations that create money or attendance side effects accept `Idempotency-Key` header (8–128 chars).
+  - Keys are scoped per authenticated user + endpoint, expire after 24 hours.
+  - Same key + same body: replay the original response status and body, add `Idempotent-Replayed: true` header.
+  - Same key + different body: 422 with `error.code: idempotency_conflict`.
+
+  ### Role-based access (auth-and-roles)
+  - Only an `owner` may grant or revoke the `owner` and `manager` roles.
+  - A `manager` may invite and edit `receptionist` and `trainer` accounts only.
+  - The last active `owner` MUST NOT be deactivated, demoted, or have their roles removed (409, `error.code: last_owner`).
+
 operations:
   apply:
     guidance:
