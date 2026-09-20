@@ -76,7 +76,9 @@ func withProvider(ctx context.Context, databaseURL string, fn func(context.Conte
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 	p, err := provider(db)
 	if err != nil {
 		return err

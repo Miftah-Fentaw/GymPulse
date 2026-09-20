@@ -30,7 +30,9 @@ func CreateIfMissing(ctx context.Context, databaseURL string) error {
 	if err != nil {
 		return fmt.Errorf("connect to %s: %w", maintenanceDB, err)
 	}
-	defer conn.Close(ctx)
+	defer func() {
+		_ = conn.Close(ctx)
+	}()
 
 	var canCreate bool
 	if err := conn.QueryRow(ctx, `SELECT rolcreatedb FROM pg_roles WHERE rolname = current_user`).Scan(&canCreate); err != nil {

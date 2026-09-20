@@ -9,15 +9,45 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
+	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+// Defines values for DurationUnit.
+const (
+	Day   DurationUnit = "day"
+	Month DurationUnit = "month"
+	Week  DurationUnit = "week"
+	Year  DurationUnit = "year"
+)
+
+// Valid indicates whether the value is a known member of the DurationUnit enum.
+func (e DurationUnit) Valid() bool {
+	switch e {
+	case Day:
+		return true
+	case Month:
+		return true
+	case Week:
+		return true
+	case Year:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for HealthResponseStatus.
 const (
@@ -28,6 +58,99 @@ const (
 func (e HealthResponseStatus) Valid() bool {
 	switch e {
 	case HealthResponseStatusOk:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LeadSource.
+const (
+	Landing  LeadSource = "landing"
+	Other    LeadSource = "other"
+	Referral LeadSource = "referral"
+	Social   LeadSource = "social"
+	WalkIn   LeadSource = "walk_in"
+)
+
+// Valid indicates whether the value is a known member of the LeadSource enum.
+func (e LeadSource) Valid() bool {
+	switch e {
+	case Landing:
+		return true
+	case Other:
+		return true
+	case Referral:
+		return true
+	case Social:
+		return true
+	case WalkIn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LeadStatus.
+const (
+	Contacted   LeadStatus = "contacted"
+	Converted   LeadStatus = "converted"
+	Lost        LeadStatus = "lost"
+	New         LeadStatus = "new"
+	TrialBooked LeadStatus = "trial_booked"
+)
+
+// Valid indicates whether the value is a known member of the LeadStatus enum.
+func (e LeadStatus) Valid() bool {
+	switch e {
+	case Contacted:
+		return true
+	case Converted:
+		return true
+	case Lost:
+		return true
+	case New:
+		return true
+	case TrialBooked:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MemberStatus.
+const (
+	Active   MemberStatus = "active"
+	Archived MemberStatus = "archived"
+)
+
+// Valid indicates whether the value is a known member of the MemberStatus enum.
+func (e MemberStatus) Valid() bool {
+	switch e {
+	case Active:
+		return true
+	case Archived:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PaymentMethod.
+const (
+	BankTransfer PaymentMethod = "bank_transfer"
+	Cash         PaymentMethod = "cash"
+	MobileMoney  PaymentMethod = "mobile_money"
+)
+
+// Valid indicates whether the value is a known member of the PaymentMethod enum.
+func (e PaymentMethod) Valid() bool {
+	switch e {
+	case BankTransfer:
+		return true
+	case Cash:
+		return true
+	case MobileMoney:
 		return true
 	default:
 		return false
@@ -51,6 +174,75 @@ func (e ReadyResponseStatus) Valid() bool {
 		return false
 	}
 }
+
+// Defines values for Role.
+const (
+	Manager      Role = "manager"
+	Owner        Role = "owner"
+	Receptionist Role = "receptionist"
+	Trainer      Role = "trainer"
+)
+
+// Valid indicates whether the value is a known member of the Role enum.
+func (e Role) Valid() bool {
+	switch e {
+	case Manager:
+		return true
+	case Owner:
+		return true
+	case Receptionist:
+		return true
+	case Trainer:
+		return true
+	default:
+		return false
+	}
+}
+
+// BootstrapOwnerRequest defines model for BootstrapOwnerRequest.
+type BootstrapOwnerRequest struct {
+	Email    openapi_types.Email `json:"email"`
+	GymName  string              `json:"gym_name"`
+	Password string              `json:"password"`
+
+	// SetupToken Value of BOOTSTRAP_TOKEN env var
+	SetupToken string `json:"setup_token"`
+}
+
+// BranchCreateRequest defines model for BranchCreateRequest.
+type BranchCreateRequest struct {
+	Address *string `json:"address,omitempty"`
+	Name    string  `json:"name"`
+	Phone   *string `json:"phone,omitempty"`
+}
+
+// BranchPatchRequest defines model for BranchPatchRequest.
+type BranchPatchRequest struct {
+	Address *string `json:"address,omitempty"`
+	Name    *string `json:"name,omitempty"`
+	Phone   *string `json:"phone,omitempty"`
+}
+
+// BrandingPatchRequest defines model for BrandingPatchRequest.
+type BrandingPatchRequest struct {
+	LogoFileId    *openapi_types.UUID `json:"logo_file_id,omitempty"`
+	PrimaryColor  *string             `json:"primary_color,omitempty"`
+	PublicTagline *string             `json:"public_tagline,omitempty"`
+}
+
+// CursorPage defines model for CursorPage.
+type CursorPage struct {
+	Items      []JsonObject `json:"items"`
+	NextCursor *string      `json:"next_cursor"`
+}
+
+// CursorPageBase defines model for CursorPageBase.
+type CursorPageBase struct {
+	NextCursor *string `json:"next_cursor"`
+}
+
+// DurationUnit defines model for DurationUnit.
+type DurationUnit string
 
 // EchoRequest defines model for EchoRequest.
 type EchoRequest struct {
@@ -82,6 +274,16 @@ type ErrorEnvelope_Error_Details struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
+// GymPatchRequest defines model for GymPatchRequest.
+type GymPatchRequest struct {
+	Address  *string              `json:"address,omitempty"`
+	Currency *string              `json:"currency,omitempty"`
+	Email    *openapi_types.Email `json:"email,omitempty"`
+	Name     *string              `json:"name,omitempty"`
+	Phone    *string              `json:"phone,omitempty"`
+	Timezone *string              `json:"timezone,omitempty"`
+}
+
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
 	Status HealthResponseStatus `json:"status"`
@@ -89,6 +291,234 @@ type HealthResponse struct {
 
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
+
+// HolidayCreateRequest defines model for HolidayCreateRequest.
+type HolidayCreateRequest struct {
+	BranchId *openapi_types.UUID `json:"branch_id,omitempty"`
+	Date     openapi_types.Date  `json:"date"`
+	Name     string              `json:"name"`
+}
+
+// HoursRequest defines model for HoursRequest.
+type HoursRequest struct {
+	Days []struct {
+		Closed    bool `json:"closed"`
+		Intervals *[]struct {
+			ClosesAt string `json:"closes_at"`
+			OpensAt  string `json:"opens_at"`
+		} `json:"intervals,omitempty"`
+		Weekday int `json:"weekday"`
+	} `json:"days"`
+}
+
+// InviteAcceptRequest defines model for InviteAcceptRequest.
+type InviteAcceptRequest struct {
+	Name     *string `json:"name,omitempty"`
+	Password string  `json:"password"`
+	Token    string  `json:"token"`
+}
+
+// InviteAcceptResponse defines model for InviteAcceptResponse.
+type InviteAcceptResponse struct {
+	UserId *openapi_types.UUID `json:"user_id,omitempty"`
+}
+
+// InviteResponse defines model for InviteResponse.
+type InviteResponse struct {
+	Email    *openapi_types.Email `json:"email,omitempty"`
+	InviteId *openapi_types.UUID  `json:"invite_id,omitempty"`
+	Roles    *[]Role              `json:"roles,omitempty"`
+}
+
+// JsonObject defines model for JsonObject.
+type JsonObject map[string]interface{}
+
+// LeadConvertRequest defines model for LeadConvertRequest.
+type LeadConvertRequest struct {
+	Email        *openapi_types.Email `json:"email,omitempty"`
+	HomeBranchId openapi_types.UUID   `json:"home_branch_id"`
+	Name         *string              `json:"name,omitempty"`
+}
+
+// LeadCreateRequest defines model for LeadCreateRequest.
+type LeadCreateRequest struct {
+	CaptchaToken *string              `json:"captcha_token,omitempty"`
+	Email        *openapi_types.Email `json:"email,omitempty"`
+
+	// Honeypot Must be empty; non-empty submissions are silently discarded
+	Honeypot          *string             `json:"honeypot,omitempty"`
+	MarketingConsent  *bool               `json:"marketing_consent,omitempty"`
+	Message           *string             `json:"message,omitempty"`
+	Name              *string             `json:"name,omitempty"`
+	Phone             *string             `json:"phone,omitempty"`
+	PreferredBranchId *openapi_types.UUID `json:"preferred_branch_id,omitempty"`
+	Source            *LeadSource         `json:"source,omitempty"`
+	union             json.RawMessage
+}
+
+// LeadCreateRequest0 defines model for LeadCreateRequest.0.
+type LeadCreateRequest0 = interface{}
+
+// LeadCreateRequest1 defines model for LeadCreateRequest.1.
+type LeadCreateRequest1 = interface{}
+
+// LeadPatchRequest defines model for LeadPatchRequest.
+type LeadPatchRequest struct {
+	AssignedToUserId *openapi_types.UUID `json:"assigned_to_user_id,omitempty"`
+	Status           *LeadStatus         `json:"status,omitempty"`
+}
+
+// LeadSource defines model for LeadSource.
+type LeadSource string
+
+// LeadStatus defines model for LeadStatus.
+type LeadStatus string
+
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Email    openapi_types.Email `json:"email"`
+	Password string              `json:"password"`
+}
+
+// LoginResponse defines model for LoginResponse.
+type LoginResponse struct {
+	AccessToken string `json:"access_token"`
+
+	// ExpiresIn seconds until access token expiry
+	ExpiresIn *int        `json:"expires_in,omitempty"`
+	User      UserSummary `json:"user"`
+}
+
+// MePatchRequest defines model for MePatchRequest.
+type MePatchRequest struct {
+	Name  *string `json:"name,omitempty"`
+	Phone *string `json:"phone,omitempty"`
+}
+
+// MeResponse defines model for MeResponse.
+type MeResponse = UserSummary
+
+// MemberCreateRequest defines model for MemberCreateRequest.
+type MemberCreateRequest struct {
+	DateOfBirth           *openapi_types.Date  `json:"date_of_birth,omitempty"`
+	Email                 *openapi_types.Email `json:"email,omitempty"`
+	EmergencyContactName  *string              `json:"emergency_contact_name,omitempty"`
+	EmergencyContactPhone *string              `json:"emergency_contact_phone,omitempty"`
+	ExistingUserId        *openapi_types.UUID  `json:"existing_user_id,omitempty"`
+	HomeBranchId          openapi_types.UUID   `json:"home_branch_id"`
+	MemberCode            *string              `json:"member_code,omitempty"`
+	Name                  string               `json:"name"`
+	Phone                 *string              `json:"phone,omitempty"`
+	PhotoFileId           *openapi_types.UUID  `json:"photo_file_id,omitempty"`
+}
+
+// MemberPatchRequest defines model for MemberPatchRequest.
+type MemberPatchRequest struct {
+	DateOfBirth           *openapi_types.Date `json:"date_of_birth,omitempty"`
+	EmergencyContactName  *string             `json:"emergency_contact_name,omitempty"`
+	EmergencyContactPhone *string             `json:"emergency_contact_phone,omitempty"`
+	HomeBranchId          *openapi_types.UUID `json:"home_branch_id,omitempty"`
+	Name                  *string             `json:"name,omitempty"`
+	Phone                 *string             `json:"phone,omitempty"`
+	PhotoFileId           *openapi_types.UUID `json:"photo_file_id,omitempty"`
+}
+
+// MemberStatus defines model for MemberStatus.
+type MemberStatus string
+
+// MembershipAssignRequest defines model for MembershipAssignRequest.
+type MembershipAssignRequest struct {
+	AutoRenew      *bool                 `json:"auto_renew,omitempty"`
+	CreateInvoice  *bool                 `json:"create_invoice,omitempty"`
+	InitialPayment *PaymentCreateRequest `json:"initial_payment,omitempty"`
+	PlanId         openapi_types.UUID    `json:"plan_id"`
+	StartDate      openapi_types.Date    `json:"start_date"`
+}
+
+// MembershipFreezeRequest defines model for MembershipFreezeRequest.
+type MembershipFreezeRequest struct {
+	EndDate   openapi_types.Date `json:"end_date"`
+	Reason    *string            `json:"reason,omitempty"`
+	StartDate openapi_types.Date `json:"start_date"`
+}
+
+// MembershipUpgradeRequest defines model for MembershipUpgradeRequest.
+type MembershipUpgradeRequest struct {
+	EffectiveDate *openapi_types.Date `json:"effective_date,omitempty"`
+	PlanId        openapi_types.UUID  `json:"plan_id"`
+}
+
+// NoteCreateRequest defines model for NoteCreateRequest.
+type NoteCreateRequest struct {
+	Body string `json:"body"`
+}
+
+// PasswordChangeRequest defines model for PasswordChangeRequest.
+type PasswordChangeRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+// PasswordForgotRequest defines model for PasswordForgotRequest.
+type PasswordForgotRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+// PasswordResetRequest defines model for PasswordResetRequest.
+type PasswordResetRequest struct {
+	NewPassword string `json:"new_password"`
+	Token       string `json:"token"`
+}
+
+// PaymentCreateRequest defines model for PaymentCreateRequest.
+type PaymentCreateRequest struct {
+	AmountMinor int64         `json:"amount_minor"`
+	Method      PaymentMethod `json:"method"`
+	Note        *string       `json:"note,omitempty"`
+	PaidAt      *time.Time    `json:"paid_at,omitempty"`
+
+	// Provider Free text, e.g. mobile money operator or bank name
+	Provider  *string `json:"provider,omitempty"`
+	Reference *string `json:"reference,omitempty"`
+}
+
+// PaymentMethod defines model for PaymentMethod.
+type PaymentMethod string
+
+// PlanCreateRequest defines model for PlanCreateRequest.
+type PlanCreateRequest struct {
+	// BranchIds Empty array means all branches
+	BranchIds      *[]openapi_types.UUID `json:"branch_ids,omitempty"`
+	Description    *string               `json:"description,omitempty"`
+	DurationCount  int                   `json:"duration_count"`
+	DurationUnit   DurationUnit          `json:"duration_unit"`
+	FreezeAllowed  *bool                 `json:"freeze_allowed,omitempty"`
+	IsActive       *bool                 `json:"is_active,omitempty"`
+	MaxFreezeDays  *int                  `json:"max_freeze_days,omitempty"`
+	Name           string                `json:"name"`
+	PriceMinor     int64                 `json:"price_minor"`
+	SignupFeeMinor *int64                `json:"signup_fee_minor,omitempty"`
+	SortOrder      *int                  `json:"sort_order,omitempty"`
+
+	// VisitsIncluded null means unlimited
+	VisitsIncluded *int `json:"visits_included,omitempty"`
+}
+
+// PlanPatchRequest defines model for PlanPatchRequest.
+type PlanPatchRequest struct {
+	BranchIds      *[]openapi_types.UUID `json:"branch_ids,omitempty"`
+	Description    *string               `json:"description,omitempty"`
+	DurationCount  *int                  `json:"duration_count,omitempty"`
+	DurationUnit   *DurationUnit         `json:"duration_unit,omitempty"`
+	FreezeAllowed  *bool                 `json:"freeze_allowed,omitempty"`
+	IsActive       *bool                 `json:"is_active,omitempty"`
+	MaxFreezeDays  *int                  `json:"max_freeze_days,omitempty"`
+	Name           *string               `json:"name,omitempty"`
+	PriceMinor     *int64                `json:"price_minor,omitempty"`
+	SignupFeeMinor *int64                `json:"signup_fee_minor,omitempty"`
+	SortOrder      *int                  `json:"sort_order,omitempty"`
+	VisitsIncluded *int                  `json:"visits_included,omitempty"`
+}
 
 // ReadyResponse defines model for ReadyResponse.
 type ReadyResponse struct {
@@ -98,11 +528,280 @@ type ReadyResponse struct {
 // ReadyResponseStatus defines model for ReadyResponse.Status.
 type ReadyResponseStatus string
 
+// ReasonRequest defines model for ReasonRequest.
+type ReasonRequest struct {
+	Reason *string `json:"reason,omitempty"`
+}
+
+// RefreshRequest defines model for RefreshRequest.
+type RefreshRequest struct {
+	// RefreshToken Fallback when httpOnly cookie is unavailable
+	RefreshToken *string `json:"refresh_token,omitempty"`
+}
+
+// RefreshResponse defines model for RefreshResponse.
+type RefreshResponse = LoginResponse
+
+// Role defines model for Role.
+type Role string
+
+// Session defines model for Session.
+type Session struct {
+	CreatedAt time.Time          `json:"created_at"`
+	Device    *string            `json:"device,omitempty"`
+	Id        openapi_types.UUID `json:"id"`
+	Ip        *string            `json:"ip,omitempty"`
+	LastUsed  *time.Time         `json:"last_used,omitempty"`
+	Revoked   *bool              `json:"revoked,omitempty"`
+}
+
+// SessionsResponse defines model for SessionsResponse.
+type SessionsResponse struct {
+	Items *[]Session `json:"items,omitempty"`
+}
+
+// StaffInviteRequest defines model for StaffInviteRequest.
+type StaffInviteRequest struct {
+	BranchIds *[]openapi_types.UUID `json:"branch_ids,omitempty"`
+	Email     openapi_types.Email   `json:"email"`
+	Roles     []Role                `json:"roles"`
+}
+
+// StaffPatchRequest defines model for StaffPatchRequest.
+type StaffPatchRequest struct {
+	Name  *string `json:"name,omitempty"`
+	Phone *string `json:"phone,omitempty"`
+}
+
+// StaffRolesRequest defines model for StaffRolesRequest.
+type StaffRolesRequest struct {
+	BranchIds *[]openapi_types.UUID `json:"branch_ids,omitempty"`
+	Roles     []Role                `json:"roles"`
+}
+
+// UserSummary defines model for UserSummary.
+type UserSummary struct {
+	Email            *openapi_types.Email `json:"email,omitempty"`
+	GymId            openapi_types.UUID   `json:"gym_id"`
+	HasMemberProfile bool                 `json:"has_member_profile"`
+	Id               openapi_types.UUID   `json:"id"`
+	Name             *string              `json:"name,omitempty"`
+	StaffRoles       []Role               `json:"staff_roles"`
+}
+
+// VerifyConfirmRequest defines model for VerifyConfirmRequest.
+type VerifyConfirmRequest struct {
+	Token string `json:"token"`
+}
+
+// BranchId defines model for BranchId.
+type BranchId = openapi_types.UUID
+
+// Cursor defines model for Cursor.
+type Cursor = string
+
+// Limit defines model for Limit.
+type Limit = int
+
+// XGymPulseClient defines model for XGymPulseClient.
+type XGymPulseClient = string
+
 // Error defines model for Error.
 type Error = ErrorEnvelope
 
+// TooManyRequests defines model for TooManyRequests.
+type TooManyRequests = ErrorEnvelope
+
+// ListAuditEventsParams defines parameters for ListAuditEvents.
+type ListAuditEventsParams struct {
+	// Cursor Opaque pagination cursor from a previous page's next_cursor
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum items to return per page
+	Limit       *Limit              `form:"limit,omitempty" json:"limit,omitempty"`
+	ActorUserId *openapi_types.UUID `form:"actor_user_id,omitempty" json:"actor_user_id,omitempty"`
+	Action      *string             `form:"action,omitempty" json:"action,omitempty"`
+	From        *time.Time          `form:"from,omitempty" json:"from,omitempty"`
+	To          *time.Time          `form:"to,omitempty" json:"to,omitempty"`
+}
+
+// PostAuthLogoutParams defines parameters for PostAuthLogout.
+type PostAuthLogoutParams struct {
+	// XGymPulseClient CSRF guard for cookie-authenticated auth routes (admin or app)
+	XGymPulseClient *XGymPulseClient `json:"X-GymPulse-Client,omitempty"`
+}
+
+// PostAuthRefreshParams defines parameters for PostAuthRefresh.
+type PostAuthRefreshParams struct {
+	// XGymPulseClient CSRF guard for cookie-authenticated auth routes (admin or app)
+	XGymPulseClient *XGymPulseClient `json:"X-GymPulse-Client,omitempty"`
+}
+
+// ListLeadsParams defines parameters for ListLeads.
+type ListLeadsParams struct {
+	// Cursor Opaque pagination cursor from a previous page's next_cursor
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum items to return per page
+	Limit  *Limit      `form:"limit,omitempty" json:"limit,omitempty"`
+	Status *LeadStatus `form:"status,omitempty" json:"status,omitempty"`
+	Q      *string     `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// ListMembersParams defines parameters for ListMembers.
+type ListMembersParams struct {
+	// Cursor Opaque pagination cursor from a previous page's next_cursor
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum items to return per page
+	Limit  *Limit        `form:"limit,omitempty" json:"limit,omitempty"`
+	Q      *string       `form:"q,omitempty" json:"q,omitempty"`
+	Status *MemberStatus `form:"status,omitempty" json:"status,omitempty"`
+
+	// BranchId Filter by branch UUID
+	BranchId *BranchId           `form:"branch_id,omitempty" json:"branch_id,omitempty"`
+	PlanId   *openapi_types.UUID `form:"plan_id,omitempty" json:"plan_id,omitempty"`
+}
+
+// ImportMembersMultipartBody defines parameters for ImportMembers.
+type ImportMembersMultipartBody struct {
+	File openapi_types.File `json:"file"`
+}
+
+// ImportMembersParams defines parameters for ImportMembers.
+type ImportMembersParams struct {
+	DryRun *bool `form:"dry_run,omitempty" json:"dry_run,omitempty"`
+}
+
+// ListMemberNotesParams defines parameters for ListMemberNotes.
+type ListMemberNotesParams struct {
+	// Cursor Opaque pagination cursor from a previous page's next_cursor
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum items to return per page
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListExpiringMembershipsParams defines parameters for ListExpiringMemberships.
+type ListExpiringMembershipsParams struct {
+	// Cursor Opaque pagination cursor from a previous page's next_cursor
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum items to return per page
+	Limit      *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+	WithinDays *int   `form:"within_days,omitempty" json:"within_days,omitempty"`
+
+	// BranchId Filter by branch UUID
+	BranchId *BranchId `form:"branch_id,omitempty" json:"branch_id,omitempty"`
+}
+
+// ListStaffParams defines parameters for ListStaff.
+type ListStaffParams struct {
+	// Cursor Opaque pagination cursor from a previous page's next_cursor
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit Maximum items to return per page
+	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// PostAuthBootstrapOwnerJSONRequestBody defines body for PostAuthBootstrapOwner for application/json ContentType.
+type PostAuthBootstrapOwnerJSONRequestBody = BootstrapOwnerRequest
+
+// PostAuthInviteJSONRequestBody defines body for PostAuthInvite for application/json ContentType.
+type PostAuthInviteJSONRequestBody = StaffInviteRequest
+
+// PostAuthInviteAcceptJSONRequestBody defines body for PostAuthInviteAccept for application/json ContentType.
+type PostAuthInviteAcceptJSONRequestBody = InviteAcceptRequest
+
+// PostAuthLoginJSONRequestBody defines body for PostAuthLogin for application/json ContentType.
+type PostAuthLoginJSONRequestBody = LoginRequest
+
+// PostAuthPasswordChangeJSONRequestBody defines body for PostAuthPasswordChange for application/json ContentType.
+type PostAuthPasswordChangeJSONRequestBody = PasswordChangeRequest
+
+// PostAuthPasswordForgotJSONRequestBody defines body for PostAuthPasswordForgot for application/json ContentType.
+type PostAuthPasswordForgotJSONRequestBody = PasswordForgotRequest
+
+// PostAuthPasswordResetJSONRequestBody defines body for PostAuthPasswordReset for application/json ContentType.
+type PostAuthPasswordResetJSONRequestBody = PasswordResetRequest
+
+// PostAuthRefreshJSONRequestBody defines body for PostAuthRefresh for application/json ContentType.
+type PostAuthRefreshJSONRequestBody = RefreshRequest
+
+// PostAuthVerifyConfirmJSONRequestBody defines body for PostAuthVerifyConfirm for application/json ContentType.
+type PostAuthVerifyConfirmJSONRequestBody = VerifyConfirmRequest
+
+// CreateBranchJSONRequestBody defines body for CreateBranch for application/json ContentType.
+type CreateBranchJSONRequestBody = BranchCreateRequest
+
+// PatchBranchJSONRequestBody defines body for PatchBranch for application/json ContentType.
+type PatchBranchJSONRequestBody = BranchPatchRequest
+
+// PutBranchHoursJSONRequestBody defines body for PutBranchHours for application/json ContentType.
+type PutBranchHoursJSONRequestBody = HoursRequest
+
 // PostEchoJSONRequestBody defines body for PostEcho for application/json ContentType.
 type PostEchoJSONRequestBody = EchoRequest
+
+// PatchGymJSONRequestBody defines body for PatchGym for application/json ContentType.
+type PatchGymJSONRequestBody = GymPatchRequest
+
+// PatchGymBrandingJSONRequestBody defines body for PatchGymBranding for application/json ContentType.
+type PatchGymBrandingJSONRequestBody = BrandingPatchRequest
+
+// CreateHolidayJSONRequestBody defines body for CreateHoliday for application/json ContentType.
+type CreateHolidayJSONRequestBody = HolidayCreateRequest
+
+// CreateLeadJSONRequestBody defines body for CreateLead for application/json ContentType.
+type CreateLeadJSONRequestBody = LeadCreateRequest
+
+// PatchLeadJSONRequestBody defines body for PatchLead for application/json ContentType.
+type PatchLeadJSONRequestBody = LeadPatchRequest
+
+// ConvertLeadJSONRequestBody defines body for ConvertLead for application/json ContentType.
+type ConvertLeadJSONRequestBody = LeadConvertRequest
+
+// CreateLeadNoteJSONRequestBody defines body for CreateLeadNote for application/json ContentType.
+type CreateLeadNoteJSONRequestBody = NoteCreateRequest
+
+// PatchMeJSONRequestBody defines body for PatchMe for application/json ContentType.
+type PatchMeJSONRequestBody = MePatchRequest
+
+// CreateMemberJSONRequestBody defines body for CreateMember for application/json ContentType.
+type CreateMemberJSONRequestBody = MemberCreateRequest
+
+// ImportMembersMultipartRequestBody defines body for ImportMembers for multipart/form-data ContentType.
+type ImportMembersMultipartRequestBody ImportMembersMultipartBody
+
+// PatchMemberJSONRequestBody defines body for PatchMember for application/json ContentType.
+type PatchMemberJSONRequestBody = MemberPatchRequest
+
+// AssignMembershipJSONRequestBody defines body for AssignMembership for application/json ContentType.
+type AssignMembershipJSONRequestBody = MembershipAssignRequest
+
+// CreateMemberNoteJSONRequestBody defines body for CreateMemberNote for application/json ContentType.
+type CreateMemberNoteJSONRequestBody = NoteCreateRequest
+
+// CancelMembershipJSONRequestBody defines body for CancelMembership for application/json ContentType.
+type CancelMembershipJSONRequestBody = ReasonRequest
+
+// FreezeMembershipJSONRequestBody defines body for FreezeMembership for application/json ContentType.
+type FreezeMembershipJSONRequestBody = MembershipFreezeRequest
+
+// UpgradeMembershipJSONRequestBody defines body for UpgradeMembership for application/json ContentType.
+type UpgradeMembershipJSONRequestBody = MembershipUpgradeRequest
+
+// CreatePlanJSONRequestBody defines body for CreatePlan for application/json ContentType.
+type CreatePlanJSONRequestBody = PlanCreateRequest
+
+// PatchPlanJSONRequestBody defines body for PatchPlan for application/json ContentType.
+type PatchPlanJSONRequestBody = PlanPatchRequest
+
+// PatchStaffJSONRequestBody defines body for PatchStaff for application/json ContentType.
+type PatchStaffJSONRequestBody = StaffPatchRequest
+
+// PutStaffRolesJSONRequestBody defines body for PutStaffRoles for application/json ContentType.
+type PutStaffRolesJSONRequestBody = StaffRolesRequest
 
 // Getter for additional properties for ErrorEnvelope_Error_Details. Returns the specified
 // element and whether it was found
@@ -172,6 +871,214 @@ func (a ErrorEnvelope_Error_Details) MarshalJSON() ([]byte, error) {
 	return json.Marshal(object)
 }
 
+// AsLeadCreateRequest0 returns the union data inside the LeadCreateRequest as a LeadCreateRequest0
+func (t LeadCreateRequest) AsLeadCreateRequest0() (LeadCreateRequest0, error) {
+	var body LeadCreateRequest0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLeadCreateRequest0 overwrites any union data inside the LeadCreateRequest as the provided LeadCreateRequest0
+func (t *LeadCreateRequest) FromLeadCreateRequest0(v LeadCreateRequest0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLeadCreateRequest0 performs a merge with any union data inside the LeadCreateRequest, using the provided LeadCreateRequest0
+func (t *LeadCreateRequest) MergeLeadCreateRequest0(v LeadCreateRequest0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsLeadCreateRequest1 returns the union data inside the LeadCreateRequest as a LeadCreateRequest1
+func (t LeadCreateRequest) AsLeadCreateRequest1() (LeadCreateRequest1, error) {
+	var body LeadCreateRequest1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromLeadCreateRequest1 overwrites any union data inside the LeadCreateRequest as the provided LeadCreateRequest1
+func (t *LeadCreateRequest) FromLeadCreateRequest1(v LeadCreateRequest1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeLeadCreateRequest1 performs a merge with any union data inside the LeadCreateRequest, using the provided LeadCreateRequest1
+func (t *LeadCreateRequest) MergeLeadCreateRequest1(v LeadCreateRequest1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t LeadCreateRequest) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if t.CaptchaToken != nil {
+		object["captcha_token"], err = json.Marshal(t.CaptchaToken)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'captcha_token': %w", err)
+		}
+	}
+
+	if t.Email != nil {
+		object["email"], err = json.Marshal(t.Email)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'email': %w", err)
+		}
+	}
+
+	if t.Honeypot != nil {
+		object["honeypot"], err = json.Marshal(t.Honeypot)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'honeypot': %w", err)
+		}
+	}
+
+	if t.MarketingConsent != nil {
+		object["marketing_consent"], err = json.Marshal(t.MarketingConsent)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'marketing_consent': %w", err)
+		}
+	}
+
+	if t.Message != nil {
+		object["message"], err = json.Marshal(t.Message)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'message': %w", err)
+		}
+	}
+
+	if t.Name != nil {
+		object["name"], err = json.Marshal(t.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'name': %w", err)
+		}
+	}
+
+	if t.Phone != nil {
+		object["phone"], err = json.Marshal(t.Phone)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'phone': %w", err)
+		}
+	}
+
+	if t.PreferredBranchId != nil {
+		object["preferred_branch_id"], err = json.Marshal(t.PreferredBranchId)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'preferred_branch_id': %w", err)
+		}
+	}
+
+	if t.Source != nil {
+		object["source"], err = json.Marshal(t.Source)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'source': %w", err)
+		}
+	}
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *LeadCreateRequest) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["captcha_token"]; found {
+		err = json.Unmarshal(raw, &t.CaptchaToken)
+		if err != nil {
+			return fmt.Errorf("error reading 'captcha_token': %w", err)
+		}
+	}
+
+	if raw, found := object["email"]; found {
+		err = json.Unmarshal(raw, &t.Email)
+		if err != nil {
+			return fmt.Errorf("error reading 'email': %w", err)
+		}
+	}
+
+	if raw, found := object["honeypot"]; found {
+		err = json.Unmarshal(raw, &t.Honeypot)
+		if err != nil {
+			return fmt.Errorf("error reading 'honeypot': %w", err)
+		}
+	}
+
+	if raw, found := object["marketing_consent"]; found {
+		err = json.Unmarshal(raw, &t.MarketingConsent)
+		if err != nil {
+			return fmt.Errorf("error reading 'marketing_consent': %w", err)
+		}
+	}
+
+	if raw, found := object["message"]; found {
+		err = json.Unmarshal(raw, &t.Message)
+		if err != nil {
+			return fmt.Errorf("error reading 'message': %w", err)
+		}
+	}
+
+	if raw, found := object["name"]; found {
+		err = json.Unmarshal(raw, &t.Name)
+		if err != nil {
+			return fmt.Errorf("error reading 'name': %w", err)
+		}
+	}
+
+	if raw, found := object["phone"]; found {
+		err = json.Unmarshal(raw, &t.Phone)
+		if err != nil {
+			return fmt.Errorf("error reading 'phone': %w", err)
+		}
+	}
+
+	if raw, found := object["preferred_branch_id"]; found {
+		err = json.Unmarshal(raw, &t.PreferredBranchId)
+		if err != nil {
+			return fmt.Errorf("error reading 'preferred_branch_id': %w", err)
+		}
+	}
+
+	if raw, found := object["source"]; found {
+		err = json.Unmarshal(raw, &t.Source)
+		if err != nil {
+			return fmt.Errorf("error reading 'source': %w", err)
+		}
+	}
+
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// GetHealth Liveness probe
@@ -180,9 +1087,207 @@ type ServerInterface interface {
 	// GetReady Readiness probe
 	// (GET /ready)
 	GetReady(w http.ResponseWriter, r *http.Request)
+	// ListAuditEvents List audit events
+	// (GET /v1/audit-events)
+	ListAuditEvents(w http.ResponseWriter, r *http.Request, params ListAuditEventsParams)
+	// PostAuthBootstrapOwner Create first owner
+	// (POST /v1/auth/bootstrap-owner)
+	PostAuthBootstrapOwner(w http.ResponseWriter, r *http.Request)
+	// PostAuthInvite Invite staff
+	// (POST /v1/auth/invite)
+	PostAuthInvite(w http.ResponseWriter, r *http.Request)
+	// PostAuthInviteAccept Accept staff invite
+	// (POST /v1/auth/invite/accept)
+	PostAuthInviteAccept(w http.ResponseWriter, r *http.Request)
+	// PostAuthLogin Password login
+	// (POST /v1/auth/login)
+	PostAuthLogin(w http.ResponseWriter, r *http.Request)
+	// PostAuthLogout Revoke current refresh session
+	// (POST /v1/auth/logout)
+	PostAuthLogout(w http.ResponseWriter, r *http.Request, params PostAuthLogoutParams)
+	// PostAuthPasswordChange Change own password
+	// (POST /v1/auth/password/change)
+	PostAuthPasswordChange(w http.ResponseWriter, r *http.Request)
+	// PostAuthPasswordForgot Request password reset
+	// (POST /v1/auth/password/forgot)
+	PostAuthPasswordForgot(w http.ResponseWriter, r *http.Request)
+	// PostAuthPasswordReset Reset password with token
+	// (POST /v1/auth/password/reset)
+	PostAuthPasswordReset(w http.ResponseWriter, r *http.Request)
+	// PostAuthRefresh Rotate refresh session
+	// (POST /v1/auth/refresh)
+	PostAuthRefresh(w http.ResponseWriter, r *http.Request, params PostAuthRefreshParams)
+	// PostAuthVerifyEmail Request email verification
+	// (POST /v1/auth/verify-email)
+	PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request)
+	// PostAuthVerifyPhone Request phone verification
+	// (POST /v1/auth/verify-phone)
+	PostAuthVerifyPhone(w http.ResponseWriter, r *http.Request)
+	// PostAuthVerifyConfirm Confirm email or phone token
+	// (POST /v1/auth/verify/confirm)
+	PostAuthVerifyConfirm(w http.ResponseWriter, r *http.Request)
+	// ListBranches List branches
+	// (GET /v1/branches)
+	ListBranches(w http.ResponseWriter, r *http.Request)
+	// CreateBranch Create branch
+	// (POST /v1/branches)
+	CreateBranch(w http.ResponseWriter, r *http.Request)
+	// GetBranch Get branch
+	// (GET /v1/branches/{branchId})
+	GetBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID)
+	// PatchBranch Update branch
+	// (PATCH /v1/branches/{branchId})
+	PatchBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID)
+	// ArchiveBranch Archive branch
+	// (POST /v1/branches/{branchId}/archive)
+	ArchiveBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID)
+	// GetBranchHours Get business hours
+	// (GET /v1/branches/{branchId}/hours)
+	GetBranchHours(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID)
+	// PutBranchHours Replace business hours
+	// (PUT /v1/branches/{branchId}/hours)
+	PutBranchHours(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID)
 	// PostEcho Bootstrap validation probe
 	// (POST /v1/echo)
 	PostEcho(w http.ResponseWriter, r *http.Request)
+	// GetGym Get gym settings
+	// (GET /v1/gym)
+	GetGym(w http.ResponseWriter, r *http.Request)
+	// PatchGym Update gym settings
+	// (PATCH /v1/gym)
+	PatchGym(w http.ResponseWriter, r *http.Request)
+	// GetGymBranding Get public branding
+	// (GET /v1/gym/branding)
+	GetGymBranding(w http.ResponseWriter, r *http.Request)
+	// PatchGymBranding Update public branding
+	// (PATCH /v1/gym/branding)
+	PatchGymBranding(w http.ResponseWriter, r *http.Request)
+	// ListHolidays List gym holidays
+	// (GET /v1/gym/holidays)
+	ListHolidays(w http.ResponseWriter, r *http.Request)
+	// CreateHoliday Create gym holiday
+	// (POST /v1/gym/holidays)
+	CreateHoliday(w http.ResponseWriter, r *http.Request)
+	// DeleteHoliday Delete gym holiday
+	// (DELETE /v1/gym/holidays/{holidayId})
+	DeleteHoliday(w http.ResponseWriter, r *http.Request, holidayId openapi_types.UUID)
+	// ListLeads List leads
+	// (GET /v1/leads)
+	ListLeads(w http.ResponseWriter, r *http.Request, params ListLeadsParams)
+	// CreateLead Public lead capture
+	// (POST /v1/leads)
+	CreateLead(w http.ResponseWriter, r *http.Request)
+	// GetLead Get lead
+	// (GET /v1/leads/{leadId})
+	GetLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID)
+	// PatchLead Update lead status
+	// (PATCH /v1/leads/{leadId})
+	PatchLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID)
+	// ConvertLead Convert lead to member
+	// (POST /v1/leads/{leadId}/convert)
+	ConvertLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID)
+	// CreateLeadNote Add lead follow-up note
+	// (POST /v1/leads/{leadId}/notes)
+	CreateLeadNote(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID)
+	// GetMe Current user profile
+	// (GET /v1/me)
+	GetMe(w http.ResponseWriter, r *http.Request)
+	// PatchMe Update current user profile
+	// (PATCH /v1/me)
+	PatchMe(w http.ResponseWriter, r *http.Request)
+	// ListMySessions List own refresh sessions
+	// (GET /v1/me/sessions)
+	ListMySessions(w http.ResponseWriter, r *http.Request)
+	// RevokeMySession Revoke one of own sessions
+	// (DELETE /v1/me/sessions/{sessionId})
+	RevokeMySession(w http.ResponseWriter, r *http.Request, sessionId openapi_types.UUID)
+	// ListMembers Search members
+	// (GET /v1/members)
+	ListMembers(w http.ResponseWriter, r *http.Request, params ListMembersParams)
+	// CreateMember Create member
+	// (POST /v1/members)
+	CreateMember(w http.ResponseWriter, r *http.Request)
+	// ExportMembers Export members CSV
+	// (GET /v1/members/export)
+	ExportMembers(w http.ResponseWriter, r *http.Request)
+	// ImportMembers Import members CSV
+	// (POST /v1/members/import)
+	ImportMembers(w http.ResponseWriter, r *http.Request, params ImportMembersParams)
+	// GetMember Get member
+	// (GET /v1/members/{memberId})
+	GetMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID)
+	// PatchMember Update member
+	// (PATCH /v1/members/{memberId})
+	PatchMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID)
+	// ArchiveMember Archive member
+	// (POST /v1/members/{memberId}/archive)
+	ArchiveMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID)
+	// ListMemberMemberships List a member's memberships
+	// (GET /v1/members/{memberId}/memberships)
+	ListMemberMemberships(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID)
+	// AssignMembership Assign a plan
+	// (POST /v1/members/{memberId}/memberships)
+	AssignMembership(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID)
+	// ListMemberNotes List member notes
+	// (GET /v1/members/{memberId}/notes)
+	ListMemberNotes(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID, params ListMemberNotesParams)
+	// CreateMemberNote Add member note
+	// (POST /v1/members/{memberId}/notes)
+	CreateMemberNote(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID)
+	// RestoreMember Restore archived member
+	// (POST /v1/members/{memberId}/restore)
+	RestoreMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID)
+	// ListExpiringMemberships List expiring memberships
+	// (GET /v1/memberships/expiring)
+	ListExpiringMemberships(w http.ResponseWriter, r *http.Request, params ListExpiringMembershipsParams)
+	// CancelMembership Cancel membership
+	// (POST /v1/memberships/{membershipId}/cancel)
+	CancelMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID)
+	// FreezeMembership Freeze membership
+	// (POST /v1/memberships/{membershipId}/freeze)
+	FreezeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID)
+	// RenewMembership Renew membership
+	// (POST /v1/memberships/{membershipId}/renew)
+	RenewMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID)
+	// ResumeMembership Resume frozen membership
+	// (POST /v1/memberships/{membershipId}/resume)
+	ResumeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID)
+	// UpgradeMembership Change plan
+	// (POST /v1/memberships/{membershipId}/upgrade)
+	UpgradeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID)
+	// ListPlans List membership plans
+	// (GET /v1/plans)
+	ListPlans(w http.ResponseWriter, r *http.Request)
+	// CreatePlan Create membership plan
+	// (POST /v1/plans)
+	CreatePlan(w http.ResponseWriter, r *http.Request)
+	// GetPlan Get membership plan
+	// (GET /v1/plans/{planId})
+	GetPlan(w http.ResponseWriter, r *http.Request, planId openapi_types.UUID)
+	// PatchPlan Update membership plan
+	// (PATCH /v1/plans/{planId})
+	PatchPlan(w http.ResponseWriter, r *http.Request, planId openapi_types.UUID)
+	// ListStaff List staff accounts
+	// (GET /v1/staff)
+	ListStaff(w http.ResponseWriter, r *http.Request, params ListStaffParams)
+	// GetStaff Get staff account
+	// (GET /v1/staff/{staffId})
+	GetStaff(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID)
+	// PatchStaff Update staff account
+	// (PATCH /v1/staff/{staffId})
+	PatchStaff(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID)
+	// PostStaffDeactivate Deactivate staff
+	// (POST /v1/staff/{staffId}/deactivate)
+	PostStaffDeactivate(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID)
+	// PostStaffReactivate Reactivate staff
+	// (POST /v1/staff/{staffId}/reactivate)
+	PostStaffReactivate(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID)
+	// PostStaffRevokeSessions Revoke all sessions for a user
+	// (POST /v1/staff/{staffId}/revoke-sessions)
+	PostStaffRevokeSessions(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID)
+	// PutStaffRoles Replace staff roles
+	// (PUT /v1/staff/{staffId}/roles)
+	PutStaffRoles(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -201,9 +1306,405 @@ func (_ Unimplemented) GetReady(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// ListAuditEvents List audit events
+// (GET /v1/audit-events)
+func (_ Unimplemented) ListAuditEvents(w http.ResponseWriter, r *http.Request, params ListAuditEventsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthBootstrapOwner Create first owner
+// (POST /v1/auth/bootstrap-owner)
+func (_ Unimplemented) PostAuthBootstrapOwner(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthInvite Invite staff
+// (POST /v1/auth/invite)
+func (_ Unimplemented) PostAuthInvite(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthInviteAccept Accept staff invite
+// (POST /v1/auth/invite/accept)
+func (_ Unimplemented) PostAuthInviteAccept(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthLogin Password login
+// (POST /v1/auth/login)
+func (_ Unimplemented) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthLogout Revoke current refresh session
+// (POST /v1/auth/logout)
+func (_ Unimplemented) PostAuthLogout(w http.ResponseWriter, r *http.Request, params PostAuthLogoutParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthPasswordChange Change own password
+// (POST /v1/auth/password/change)
+func (_ Unimplemented) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthPasswordForgot Request password reset
+// (POST /v1/auth/password/forgot)
+func (_ Unimplemented) PostAuthPasswordForgot(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthPasswordReset Reset password with token
+// (POST /v1/auth/password/reset)
+func (_ Unimplemented) PostAuthPasswordReset(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthRefresh Rotate refresh session
+// (POST /v1/auth/refresh)
+func (_ Unimplemented) PostAuthRefresh(w http.ResponseWriter, r *http.Request, params PostAuthRefreshParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthVerifyEmail Request email verification
+// (POST /v1/auth/verify-email)
+func (_ Unimplemented) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthVerifyPhone Request phone verification
+// (POST /v1/auth/verify-phone)
+func (_ Unimplemented) PostAuthVerifyPhone(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostAuthVerifyConfirm Confirm email or phone token
+// (POST /v1/auth/verify/confirm)
+func (_ Unimplemented) PostAuthVerifyConfirm(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListBranches List branches
+// (GET /v1/branches)
+func (_ Unimplemented) ListBranches(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateBranch Create branch
+// (POST /v1/branches)
+func (_ Unimplemented) CreateBranch(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetBranch Get branch
+// (GET /v1/branches/{branchId})
+func (_ Unimplemented) GetBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PatchBranch Update branch
+// (PATCH /v1/branches/{branchId})
+func (_ Unimplemented) PatchBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ArchiveBranch Archive branch
+// (POST /v1/branches/{branchId}/archive)
+func (_ Unimplemented) ArchiveBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetBranchHours Get business hours
+// (GET /v1/branches/{branchId}/hours)
+func (_ Unimplemented) GetBranchHours(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PutBranchHours Replace business hours
+// (PUT /v1/branches/{branchId}/hours)
+func (_ Unimplemented) PutBranchHours(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // PostEcho Bootstrap validation probe
 // (POST /v1/echo)
 func (_ Unimplemented) PostEcho(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetGym Get gym settings
+// (GET /v1/gym)
+func (_ Unimplemented) GetGym(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PatchGym Update gym settings
+// (PATCH /v1/gym)
+func (_ Unimplemented) PatchGym(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetGymBranding Get public branding
+// (GET /v1/gym/branding)
+func (_ Unimplemented) GetGymBranding(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PatchGymBranding Update public branding
+// (PATCH /v1/gym/branding)
+func (_ Unimplemented) PatchGymBranding(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListHolidays List gym holidays
+// (GET /v1/gym/holidays)
+func (_ Unimplemented) ListHolidays(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateHoliday Create gym holiday
+// (POST /v1/gym/holidays)
+func (_ Unimplemented) CreateHoliday(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeleteHoliday Delete gym holiday
+// (DELETE /v1/gym/holidays/{holidayId})
+func (_ Unimplemented) DeleteHoliday(w http.ResponseWriter, r *http.Request, holidayId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListLeads List leads
+// (GET /v1/leads)
+func (_ Unimplemented) ListLeads(w http.ResponseWriter, r *http.Request, params ListLeadsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateLead Public lead capture
+// (POST /v1/leads)
+func (_ Unimplemented) CreateLead(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetLead Get lead
+// (GET /v1/leads/{leadId})
+func (_ Unimplemented) GetLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PatchLead Update lead status
+// (PATCH /v1/leads/{leadId})
+func (_ Unimplemented) PatchLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ConvertLead Convert lead to member
+// (POST /v1/leads/{leadId}/convert)
+func (_ Unimplemented) ConvertLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateLeadNote Add lead follow-up note
+// (POST /v1/leads/{leadId}/notes)
+func (_ Unimplemented) CreateLeadNote(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetMe Current user profile
+// (GET /v1/me)
+func (_ Unimplemented) GetMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PatchMe Update current user profile
+// (PATCH /v1/me)
+func (_ Unimplemented) PatchMe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMySessions List own refresh sessions
+// (GET /v1/me/sessions)
+func (_ Unimplemented) ListMySessions(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RevokeMySession Revoke one of own sessions
+// (DELETE /v1/me/sessions/{sessionId})
+func (_ Unimplemented) RevokeMySession(w http.ResponseWriter, r *http.Request, sessionId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMembers Search members
+// (GET /v1/members)
+func (_ Unimplemented) ListMembers(w http.ResponseWriter, r *http.Request, params ListMembersParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateMember Create member
+// (POST /v1/members)
+func (_ Unimplemented) CreateMember(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ExportMembers Export members CSV
+// (GET /v1/members/export)
+func (_ Unimplemented) ExportMembers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ImportMembers Import members CSV
+// (POST /v1/members/import)
+func (_ Unimplemented) ImportMembers(w http.ResponseWriter, r *http.Request, params ImportMembersParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetMember Get member
+// (GET /v1/members/{memberId})
+func (_ Unimplemented) GetMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PatchMember Update member
+// (PATCH /v1/members/{memberId})
+func (_ Unimplemented) PatchMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ArchiveMember Archive member
+// (POST /v1/members/{memberId}/archive)
+func (_ Unimplemented) ArchiveMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMemberMemberships List a member's memberships
+// (GET /v1/members/{memberId}/memberships)
+func (_ Unimplemented) ListMemberMemberships(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// AssignMembership Assign a plan
+// (POST /v1/members/{memberId}/memberships)
+func (_ Unimplemented) AssignMembership(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListMemberNotes List member notes
+// (GET /v1/members/{memberId}/notes)
+func (_ Unimplemented) ListMemberNotes(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID, params ListMemberNotesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateMemberNote Add member note
+// (POST /v1/members/{memberId}/notes)
+func (_ Unimplemented) CreateMemberNote(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RestoreMember Restore archived member
+// (POST /v1/members/{memberId}/restore)
+func (_ Unimplemented) RestoreMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListExpiringMemberships List expiring memberships
+// (GET /v1/memberships/expiring)
+func (_ Unimplemented) ListExpiringMemberships(w http.ResponseWriter, r *http.Request, params ListExpiringMembershipsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CancelMembership Cancel membership
+// (POST /v1/memberships/{membershipId}/cancel)
+func (_ Unimplemented) CancelMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// FreezeMembership Freeze membership
+// (POST /v1/memberships/{membershipId}/freeze)
+func (_ Unimplemented) FreezeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RenewMembership Renew membership
+// (POST /v1/memberships/{membershipId}/renew)
+func (_ Unimplemented) RenewMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ResumeMembership Resume frozen membership
+// (POST /v1/memberships/{membershipId}/resume)
+func (_ Unimplemented) ResumeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpgradeMembership Change plan
+// (POST /v1/memberships/{membershipId}/upgrade)
+func (_ Unimplemented) UpgradeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListPlans List membership plans
+// (GET /v1/plans)
+func (_ Unimplemented) ListPlans(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreatePlan Create membership plan
+// (POST /v1/plans)
+func (_ Unimplemented) CreatePlan(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetPlan Get membership plan
+// (GET /v1/plans/{planId})
+func (_ Unimplemented) GetPlan(w http.ResponseWriter, r *http.Request, planId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PatchPlan Update membership plan
+// (PATCH /v1/plans/{planId})
+func (_ Unimplemented) PatchPlan(w http.ResponseWriter, r *http.Request, planId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListStaff List staff accounts
+// (GET /v1/staff)
+func (_ Unimplemented) ListStaff(w http.ResponseWriter, r *http.Request, params ListStaffParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetStaff Get staff account
+// (GET /v1/staff/{staffId})
+func (_ Unimplemented) GetStaff(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PatchStaff Update staff account
+// (PATCH /v1/staff/{staffId})
+func (_ Unimplemented) PatchStaff(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostStaffDeactivate Deactivate staff
+// (POST /v1/staff/{staffId}/deactivate)
+func (_ Unimplemented) PostStaffDeactivate(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostStaffReactivate Reactivate staff
+// (POST /v1/staff/{staffId}/reactivate)
+func (_ Unimplemented) PostStaffReactivate(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PostStaffRevokeSessions Revoke all sessions for a user
+// (POST /v1/staff/{staffId}/revoke-sessions)
+func (_ Unimplemented) PostStaffRevokeSessions(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// PutStaffRoles Replace staff roles
+// (PUT /v1/staff/{staffId}/roles)
+func (_ Unimplemented) PutStaffRoles(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -244,11 +1745,1737 @@ func (siw *ServerInterfaceWrapper) GetReady(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ListAuditEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListAuditEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAuditEventsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "actor_user_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "actor_user_id", r.URL.Query(), &params.ActorUserId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "actor_user_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "actor_user_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action", r.URL.Query(), &params.Action, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "action"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "action", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAuditEvents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthBootstrapOwner operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthBootstrapOwner(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthBootstrapOwner(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthInvite operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthInvite(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthInvite(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthInviteAccept operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthInviteAccept(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthInviteAccept(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthLogin operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthLogout operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogout(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthLogoutParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-GymPulse-Client" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-GymPulse-Client")]; found {
+		var XGymPulseClient XGymPulseClient
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-GymPulse-Client", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-GymPulse-Client", valueList[0], &XGymPulseClient, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-GymPulse-Client", Err: err})
+			return
+		}
+
+		params.XGymPulseClient = &XGymPulseClient
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthLogout(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthPasswordChange operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthPasswordChange(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthPasswordForgot operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthPasswordForgot(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthPasswordForgot(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthPasswordReset operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthPasswordReset(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthPasswordReset(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthRefresh operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthRefresh(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthRefreshParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-GymPulse-Client" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-GymPulse-Client")]; found {
+		var XGymPulseClient XGymPulseClient
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-GymPulse-Client", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-GymPulse-Client", valueList[0], &XGymPulseClient, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-GymPulse-Client", Err: err})
+			return
+		}
+
+		params.XGymPulseClient = &XGymPulseClient
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthRefresh(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthVerifyEmail operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthVerifyEmail(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthVerifyPhone operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthVerifyPhone(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthVerifyPhone(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostAuthVerifyConfirm operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthVerifyConfirm(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostAuthVerifyConfirm(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListBranches operation middleware
+func (siw *ServerInterfaceWrapper) ListBranches(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListBranches(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateBranch operation middleware
+func (siw *ServerInterfaceWrapper) CreateBranch(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateBranch(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetBranch operation middleware
+func (siw *ServerInterfaceWrapper) GetBranch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "branchId" -------------
+	var branchId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "branchId", chi.URLParam(r, "branchId"), &branchId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "branchId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBranch(w, r, branchId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchBranch operation middleware
+func (siw *ServerInterfaceWrapper) PatchBranch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "branchId" -------------
+	var branchId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "branchId", chi.URLParam(r, "branchId"), &branchId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "branchId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchBranch(w, r, branchId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ArchiveBranch operation middleware
+func (siw *ServerInterfaceWrapper) ArchiveBranch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "branchId" -------------
+	var branchId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "branchId", chi.URLParam(r, "branchId"), &branchId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "branchId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ArchiveBranch(w, r, branchId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetBranchHours operation middleware
+func (siw *ServerInterfaceWrapper) GetBranchHours(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "branchId" -------------
+	var branchId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "branchId", chi.URLParam(r, "branchId"), &branchId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "branchId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBranchHours(w, r, branchId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutBranchHours operation middleware
+func (siw *ServerInterfaceWrapper) PutBranchHours(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "branchId" -------------
+	var branchId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "branchId", chi.URLParam(r, "branchId"), &branchId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "branchId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutBranchHours(w, r, branchId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PostEcho operation middleware
 func (siw *ServerInterfaceWrapper) PostEcho(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PostEcho(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetGym operation middleware
+func (siw *ServerInterfaceWrapper) GetGym(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetGym(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchGym operation middleware
+func (siw *ServerInterfaceWrapper) PatchGym(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchGym(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetGymBranding operation middleware
+func (siw *ServerInterfaceWrapper) GetGymBranding(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetGymBranding(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchGymBranding operation middleware
+func (siw *ServerInterfaceWrapper) PatchGymBranding(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchGymBranding(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListHolidays operation middleware
+func (siw *ServerInterfaceWrapper) ListHolidays(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHolidays(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateHoliday operation middleware
+func (siw *ServerInterfaceWrapper) CreateHoliday(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateHoliday(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteHoliday operation middleware
+func (siw *ServerInterfaceWrapper) DeleteHoliday(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "holidayId" -------------
+	var holidayId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "holidayId", chi.URLParam(r, "holidayId"), &holidayId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "holidayId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteHoliday(w, r, holidayId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListLeads operation middleware
+func (siw *ServerInterfaceWrapper) ListLeads(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListLeadsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLeads(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLead operation middleware
+func (siw *ServerInterfaceWrapper) CreateLead(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLead(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetLead operation middleware
+func (siw *ServerInterfaceWrapper) GetLead(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "leadId" -------------
+	var leadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "leadId", chi.URLParam(r, "leadId"), &leadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "leadId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetLead(w, r, leadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchLead operation middleware
+func (siw *ServerInterfaceWrapper) PatchLead(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "leadId" -------------
+	var leadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "leadId", chi.URLParam(r, "leadId"), &leadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "leadId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchLead(w, r, leadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConvertLead operation middleware
+func (siw *ServerInterfaceWrapper) ConvertLead(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "leadId" -------------
+	var leadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "leadId", chi.URLParam(r, "leadId"), &leadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "leadId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConvertLead(w, r, leadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateLeadNote operation middleware
+func (siw *ServerInterfaceWrapper) CreateLeadNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "leadId" -------------
+	var leadId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "leadId", chi.URLParam(r, "leadId"), &leadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "leadId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateLeadNote(w, r, leadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMe operation middleware
+func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchMe operation middleware
+func (siw *ServerInterfaceWrapper) PatchMe(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMySessions operation middleware
+func (siw *ServerInterfaceWrapper) ListMySessions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMySessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeMySession operation middleware
+func (siw *ServerInterfaceWrapper) RevokeMySession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sessionId" -------------
+	var sessionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sessionId", chi.URLParam(r, "sessionId"), &sessionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sessionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeMySession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMembers operation middleware
+func (siw *ServerInterfaceWrapper) ListMembers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMembersParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "branch_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "branch_id", r.URL.Query(), &params.BranchId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "branch_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "branch_id", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "plan_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "plan_id", r.URL.Query(), &params.PlanId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "plan_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "plan_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMembers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMember operation middleware
+func (siw *ServerInterfaceWrapper) CreateMember(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMember(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ExportMembers operation middleware
+func (siw *ServerInterfaceWrapper) ExportMembers(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportMembers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ImportMembers operation middleware
+func (siw *ServerInterfaceWrapper) ImportMembers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ImportMembersParams
+
+	// ------------- Optional query parameter "dry_run" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "dry_run", r.URL.Query(), &params.DryRun, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "dry_run"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dry_run", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ImportMembers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMember operation middleware
+func (siw *ServerInterfaceWrapper) GetMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "memberId" -------------
+	var memberId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "memberId", chi.URLParam(r, "memberId"), &memberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "memberId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMember(w, r, memberId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchMember operation middleware
+func (siw *ServerInterfaceWrapper) PatchMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "memberId" -------------
+	var memberId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "memberId", chi.URLParam(r, "memberId"), &memberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "memberId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchMember(w, r, memberId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ArchiveMember operation middleware
+func (siw *ServerInterfaceWrapper) ArchiveMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "memberId" -------------
+	var memberId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "memberId", chi.URLParam(r, "memberId"), &memberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "memberId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ArchiveMember(w, r, memberId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMemberMemberships operation middleware
+func (siw *ServerInterfaceWrapper) ListMemberMemberships(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "memberId" -------------
+	var memberId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "memberId", chi.URLParam(r, "memberId"), &memberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "memberId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMemberMemberships(w, r, memberId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AssignMembership operation middleware
+func (siw *ServerInterfaceWrapper) AssignMembership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "memberId" -------------
+	var memberId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "memberId", chi.URLParam(r, "memberId"), &memberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "memberId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AssignMembership(w, r, memberId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMemberNotes operation middleware
+func (siw *ServerInterfaceWrapper) ListMemberNotes(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "memberId" -------------
+	var memberId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "memberId", chi.URLParam(r, "memberId"), &memberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "memberId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMemberNotesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMemberNotes(w, r, memberId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMemberNote operation middleware
+func (siw *ServerInterfaceWrapper) CreateMemberNote(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "memberId" -------------
+	var memberId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "memberId", chi.URLParam(r, "memberId"), &memberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "memberId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMemberNote(w, r, memberId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreMember operation middleware
+func (siw *ServerInterfaceWrapper) RestoreMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "memberId" -------------
+	var memberId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "memberId", chi.URLParam(r, "memberId"), &memberId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "memberId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreMember(w, r, memberId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListExpiringMemberships operation middleware
+func (siw *ServerInterfaceWrapper) ListExpiringMemberships(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListExpiringMembershipsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "within_days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "within_days", r.URL.Query(), &params.WithinDays, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "within_days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "within_days", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "branch_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "branch_id", r.URL.Query(), &params.BranchId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "branch_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "branch_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListExpiringMemberships(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelMembership operation middleware
+func (siw *ServerInterfaceWrapper) CancelMembership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "membershipId" -------------
+	var membershipId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "membershipId", chi.URLParam(r, "membershipId"), &membershipId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "membershipId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelMembership(w, r, membershipId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// FreezeMembership operation middleware
+func (siw *ServerInterfaceWrapper) FreezeMembership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "membershipId" -------------
+	var membershipId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "membershipId", chi.URLParam(r, "membershipId"), &membershipId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "membershipId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FreezeMembership(w, r, membershipId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenewMembership operation middleware
+func (siw *ServerInterfaceWrapper) RenewMembership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "membershipId" -------------
+	var membershipId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "membershipId", chi.URLParam(r, "membershipId"), &membershipId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "membershipId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenewMembership(w, r, membershipId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResumeMembership operation middleware
+func (siw *ServerInterfaceWrapper) ResumeMembership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "membershipId" -------------
+	var membershipId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "membershipId", chi.URLParam(r, "membershipId"), &membershipId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "membershipId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResumeMembership(w, r, membershipId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpgradeMembership operation middleware
+func (siw *ServerInterfaceWrapper) UpgradeMembership(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "membershipId" -------------
+	var membershipId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "membershipId", chi.URLParam(r, "membershipId"), &membershipId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "membershipId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpgradeMembership(w, r, membershipId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPlans operation middleware
+func (siw *ServerInterfaceWrapper) ListPlans(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlans(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePlan operation middleware
+func (siw *ServerInterfaceWrapper) CreatePlan(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePlan(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPlan operation middleware
+func (siw *ServerInterfaceWrapper) GetPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", chi.URLParam(r, "planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPlan(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchPlan operation middleware
+func (siw *ServerInterfaceWrapper) PatchPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planId" -------------
+	var planId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planId", chi.URLParam(r, "planId"), &planId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchPlan(w, r, planId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListStaff operation middleware
+func (siw *ServerInterfaceWrapper) ListStaff(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListStaffParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListStaff(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetStaff operation middleware
+func (siw *ServerInterfaceWrapper) GetStaff(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", chi.URLParam(r, "staffId"), &staffId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "staffId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetStaff(w, r, staffId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PatchStaff operation middleware
+func (siw *ServerInterfaceWrapper) PatchStaff(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", chi.URLParam(r, "staffId"), &staffId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "staffId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PatchStaff(w, r, staffId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostStaffDeactivate operation middleware
+func (siw *ServerInterfaceWrapper) PostStaffDeactivate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", chi.URLParam(r, "staffId"), &staffId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "staffId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostStaffDeactivate(w, r, staffId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostStaffReactivate operation middleware
+func (siw *ServerInterfaceWrapper) PostStaffReactivate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", chi.URLParam(r, "staffId"), &staffId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "staffId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostStaffReactivate(w, r, staffId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PostStaffRevokeSessions operation middleware
+func (siw *ServerInterfaceWrapper) PostStaffRevokeSessions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", chi.URLParam(r, "staffId"), &staffId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "staffId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostStaffRevokeSessions(w, r, staffId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutStaffRoles operation middleware
+func (siw *ServerInterfaceWrapper) PutStaffRoles(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", chi.URLParam(r, "staffId"), &staffId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "staffId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutStaffRoles(w, r, staffId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -380,11 +3607,218 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/v1/echo", wrapper.PostEcho)
 	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/login", wrapper.PostAuthLogin)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/refresh", wrapper.PostAuthRefresh)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/logout", wrapper.PostAuthLogout)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/bootstrap-owner", wrapper.PostAuthBootstrapOwner)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/password/change", wrapper.PostAuthPasswordChange)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/password/forgot", wrapper.PostAuthPasswordForgot)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/password/reset", wrapper.PostAuthPasswordReset)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/invite", wrapper.PostAuthInvite)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/invite/accept", wrapper.PostAuthInviteAccept)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/verify-email", wrapper.PostAuthVerifyEmail)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/verify-phone", wrapper.PostAuthVerifyPhone)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/auth/verify/confirm", wrapper.PostAuthVerifyConfirm)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/me", wrapper.GetMe)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/v1/me", wrapper.PatchMe)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/me/sessions", wrapper.ListMySessions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/v1/me/sessions/{sessionId}", wrapper.RevokeMySession)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/staff", wrapper.ListStaff)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/staff/{staffId}", wrapper.GetStaff)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/v1/staff/{staffId}", wrapper.PatchStaff)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/v1/staff/{staffId}/roles", wrapper.PutStaffRoles)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/staff/{staffId}/deactivate", wrapper.PostStaffDeactivate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/staff/{staffId}/reactivate", wrapper.PostStaffReactivate)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/staff/{staffId}/revoke-sessions", wrapper.PostStaffRevokeSessions)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/audit-events", wrapper.ListAuditEvents)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/gym", wrapper.GetGym)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/v1/gym", wrapper.PatchGym)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/gym/branding", wrapper.GetGymBranding)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/v1/gym/branding", wrapper.PatchGymBranding)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/branches", wrapper.ListBranches)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/branches", wrapper.CreateBranch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/branches/{branchId}", wrapper.GetBranch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/v1/branches/{branchId}", wrapper.PatchBranch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/branches/{branchId}/archive", wrapper.ArchiveBranch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/branches/{branchId}/hours", wrapper.GetBranchHours)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/v1/branches/{branchId}/hours", wrapper.PutBranchHours)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/gym/holidays", wrapper.ListHolidays)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/gym/holidays", wrapper.CreateHoliday)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/v1/gym/holidays/{holidayId}", wrapper.DeleteHoliday)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/members", wrapper.ListMembers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/members", wrapper.CreateMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/members/{memberId}", wrapper.GetMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/v1/members/{memberId}", wrapper.PatchMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/members/{memberId}/archive", wrapper.ArchiveMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/members/{memberId}/restore", wrapper.RestoreMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/members/{memberId}/notes", wrapper.ListMemberNotes)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/members/{memberId}/notes", wrapper.CreateMemberNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/members/export", wrapper.ExportMembers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/members/import", wrapper.ImportMembers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/plans", wrapper.ListPlans)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/plans", wrapper.CreatePlan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/plans/{planId}", wrapper.GetPlan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/v1/plans/{planId}", wrapper.PatchPlan)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/members/{memberId}/memberships", wrapper.ListMemberMemberships)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/members/{memberId}/memberships", wrapper.AssignMembership)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/memberships/{membershipId}/freeze", wrapper.FreezeMembership)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/memberships/{membershipId}/resume", wrapper.ResumeMembership)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/memberships/{membershipId}/cancel", wrapper.CancelMembership)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/memberships/{membershipId}/upgrade", wrapper.UpgradeMembership)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/memberships/{membershipId}/renew", wrapper.RenewMembership)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/memberships/expiring", wrapper.ListExpiringMemberships)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/leads", wrapper.ListLeads)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/leads", wrapper.CreateLead)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/v1/leads/{leadId}", wrapper.GetLead)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/v1/leads/{leadId}", wrapper.PatchLead)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/leads/{leadId}/notes", wrapper.CreateLeadNote)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/v1/leads/{leadId}/convert", wrapper.ConvertLead)
+	})
 
 	return r
 }
 
 type ErrorJSONResponse ErrorEnvelope
+
+type TooManyRequestsResponseHeaders struct {
+	RetryAfter int
+}
+type TooManyRequestsJSONResponse struct {
+	Body ErrorEnvelope
+
+	Headers TooManyRequestsResponseHeaders
+}
 
 type GetHealthRequestObject struct {
 }
@@ -442,6 +3876,1448 @@ func (response GetReady503JSONResponse) VisitGetReadyResponse(w http.ResponseWri
 	return err
 }
 
+type ListAuditEventsRequestObject struct {
+	Params ListAuditEventsParams
+}
+
+type ListAuditEventsResponseObject interface {
+	VisitListAuditEventsResponse(w http.ResponseWriter) error
+}
+
+type ListAuditEvents200JSONResponse CursorPage
+
+func (response ListAuditEvents200JSONResponse) VisitListAuditEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAuditEvents400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListAuditEvents400JSONResponse) VisitListAuditEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAuditEvents401JSONResponse ErrorEnvelope
+
+func (response ListAuditEvents401JSONResponse) VisitListAuditEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAuditEvents403JSONResponse ErrorEnvelope
+
+func (response ListAuditEvents403JSONResponse) VisitListAuditEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthBootstrapOwnerRequestObject struct {
+	Body *PostAuthBootstrapOwnerJSONRequestBody
+}
+
+type PostAuthBootstrapOwnerResponseObject interface {
+	VisitPostAuthBootstrapOwnerResponse(w http.ResponseWriter) error
+}
+
+type PostAuthBootstrapOwner201JSONResponse JsonObject
+
+func (response PostAuthBootstrapOwner201JSONResponse) VisitPostAuthBootstrapOwnerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthBootstrapOwner400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthBootstrapOwner400JSONResponse) VisitPostAuthBootstrapOwnerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthBootstrapOwner409JSONResponse ErrorEnvelope
+
+func (response PostAuthBootstrapOwner409JSONResponse) VisitPostAuthBootstrapOwnerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInviteRequestObject struct {
+	Body *PostAuthInviteJSONRequestBody
+}
+
+type PostAuthInviteResponseObject interface {
+	VisitPostAuthInviteResponse(w http.ResponseWriter) error
+}
+
+type PostAuthInvite201JSONResponse InviteResponse
+
+func (response PostAuthInvite201JSONResponse) VisitPostAuthInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInvite400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthInvite400JSONResponse) VisitPostAuthInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInvite401JSONResponse ErrorEnvelope
+
+func (response PostAuthInvite401JSONResponse) VisitPostAuthInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInvite403JSONResponse ErrorEnvelope
+
+func (response PostAuthInvite403JSONResponse) VisitPostAuthInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInvite409JSONResponse ErrorEnvelope
+
+func (response PostAuthInvite409JSONResponse) VisitPostAuthInviteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInviteAcceptRequestObject struct {
+	Body *PostAuthInviteAcceptJSONRequestBody
+}
+
+type PostAuthInviteAcceptResponseObject interface {
+	VisitPostAuthInviteAcceptResponse(w http.ResponseWriter) error
+}
+
+type PostAuthInviteAccept201JSONResponse InviteAcceptResponse
+
+func (response PostAuthInviteAccept201JSONResponse) VisitPostAuthInviteAcceptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInviteAccept400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthInviteAccept400JSONResponse) VisitPostAuthInviteAcceptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInviteAccept409JSONResponse ErrorEnvelope
+
+func (response PostAuthInviteAccept409JSONResponse) VisitPostAuthInviteAcceptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthInviteAccept429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response PostAuthInviteAccept429JSONResponse) VisitPostAuthInviteAcceptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLoginRequestObject struct {
+	Body *PostAuthLoginJSONRequestBody
+}
+
+type PostAuthLoginResponseObject interface {
+	VisitPostAuthLoginResponse(w http.ResponseWriter) error
+}
+
+type PostAuthLogin200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type PostAuthLogin200JSONResponse struct {
+	Body    LoginResponse
+	Headers PostAuthLogin200ResponseHeaders
+}
+
+func (response PostAuthLogin200JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogin400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthLogin400JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogin401JSONResponse ErrorEnvelope
+
+func (response PostAuthLogin401JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogin429JSONResponse ErrorEnvelope
+
+func (response PostAuthLogin429JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogoutRequestObject struct {
+	Params PostAuthLogoutParams
+}
+
+type PostAuthLogoutResponseObject interface {
+	VisitPostAuthLogoutResponse(w http.ResponseWriter) error
+}
+
+type PostAuthLogout204ResponseHeaders struct {
+	SetCookie *string
+}
+
+type PostAuthLogout204Response struct {
+	Headers PostAuthLogout204ResponseHeaders
+}
+
+func (response PostAuthLogout204Response) VisitPostAuthLogoutResponse(w http.ResponseWriter) error {
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(204)
+	return nil
+}
+
+type PostAuthLogout400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthLogout400JSONResponse) VisitPostAuthLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogout401JSONResponse ErrorEnvelope
+
+func (response PostAuthLogout401JSONResponse) VisitPostAuthLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPasswordChangeRequestObject struct {
+	Body *PostAuthPasswordChangeJSONRequestBody
+}
+
+type PostAuthPasswordChangeResponseObject interface {
+	VisitPostAuthPasswordChangeResponse(w http.ResponseWriter) error
+}
+
+type PostAuthPasswordChange204Response struct {
+}
+
+func (response PostAuthPasswordChange204Response) VisitPostAuthPasswordChangeResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PostAuthPasswordChange400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthPasswordChange400JSONResponse) VisitPostAuthPasswordChangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPasswordChange401JSONResponse ErrorEnvelope
+
+func (response PostAuthPasswordChange401JSONResponse) VisitPostAuthPasswordChangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPasswordChange403JSONResponse ErrorEnvelope
+
+func (response PostAuthPasswordChange403JSONResponse) VisitPostAuthPasswordChangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPasswordForgotRequestObject struct {
+	Body *PostAuthPasswordForgotJSONRequestBody
+}
+
+type PostAuthPasswordForgotResponseObject interface {
+	VisitPostAuthPasswordForgotResponse(w http.ResponseWriter) error
+}
+
+type PostAuthPasswordForgot202Response struct {
+}
+
+func (response PostAuthPasswordForgot202Response) VisitPostAuthPasswordForgotResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type PostAuthPasswordForgot400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthPasswordForgot400JSONResponse) VisitPostAuthPasswordForgotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPasswordForgot429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response PostAuthPasswordForgot429JSONResponse) VisitPostAuthPasswordForgotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPasswordResetRequestObject struct {
+	Body *PostAuthPasswordResetJSONRequestBody
+}
+
+type PostAuthPasswordResetResponseObject interface {
+	VisitPostAuthPasswordResetResponse(w http.ResponseWriter) error
+}
+
+type PostAuthPasswordReset204Response struct {
+}
+
+func (response PostAuthPasswordReset204Response) VisitPostAuthPasswordResetResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PostAuthPasswordReset400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthPasswordReset400JSONResponse) VisitPostAuthPasswordResetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPasswordReset401JSONResponse ErrorEnvelope
+
+func (response PostAuthPasswordReset401JSONResponse) VisitPostAuthPasswordResetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPasswordReset429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response PostAuthPasswordReset429JSONResponse) VisitPostAuthPasswordResetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthRefreshRequestObject struct {
+	Params PostAuthRefreshParams
+	Body   *PostAuthRefreshJSONRequestBody
+}
+
+type PostAuthRefreshResponseObject interface {
+	VisitPostAuthRefreshResponse(w http.ResponseWriter) error
+}
+
+type PostAuthRefresh200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type PostAuthRefresh200JSONResponse struct {
+	Body    RefreshResponse
+	Headers PostAuthRefresh200ResponseHeaders
+}
+
+func (response PostAuthRefresh200JSONResponse) VisitPostAuthRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthRefresh400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthRefresh400JSONResponse) VisitPostAuthRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthRefresh401JSONResponse ErrorEnvelope
+
+func (response PostAuthRefresh401JSONResponse) VisitPostAuthRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthRefresh429JSONResponse ErrorEnvelope
+
+func (response PostAuthRefresh429JSONResponse) VisitPostAuthRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyEmailRequestObject struct {
+}
+
+type PostAuthVerifyEmailResponseObject interface {
+	VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error
+}
+
+type PostAuthVerifyEmail201JSONResponse JsonObject
+
+func (response PostAuthVerifyEmail201JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyEmail400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthVerifyEmail400JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyEmail401JSONResponse ErrorEnvelope
+
+func (response PostAuthVerifyEmail401JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyEmail403JSONResponse ErrorEnvelope
+
+func (response PostAuthVerifyEmail403JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyEmail409JSONResponse ErrorEnvelope
+
+func (response PostAuthVerifyEmail409JSONResponse) VisitPostAuthVerifyEmailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyPhoneRequestObject struct {
+}
+
+type PostAuthVerifyPhoneResponseObject interface {
+	VisitPostAuthVerifyPhoneResponse(w http.ResponseWriter) error
+}
+
+type PostAuthVerifyPhone201JSONResponse JsonObject
+
+func (response PostAuthVerifyPhone201JSONResponse) VisitPostAuthVerifyPhoneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyPhone400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthVerifyPhone400JSONResponse) VisitPostAuthVerifyPhoneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyPhone401JSONResponse ErrorEnvelope
+
+func (response PostAuthVerifyPhone401JSONResponse) VisitPostAuthVerifyPhoneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyPhone403JSONResponse ErrorEnvelope
+
+func (response PostAuthVerifyPhone403JSONResponse) VisitPostAuthVerifyPhoneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyPhone409JSONResponse ErrorEnvelope
+
+func (response PostAuthVerifyPhone409JSONResponse) VisitPostAuthVerifyPhoneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyConfirmRequestObject struct {
+	Body *PostAuthVerifyConfirmJSONRequestBody
+}
+
+type PostAuthVerifyConfirmResponseObject interface {
+	VisitPostAuthVerifyConfirmResponse(w http.ResponseWriter) error
+}
+
+type PostAuthVerifyConfirm201JSONResponse JsonObject
+
+func (response PostAuthVerifyConfirm201JSONResponse) VisitPostAuthVerifyConfirmResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyConfirm400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostAuthVerifyConfirm400JSONResponse) VisitPostAuthVerifyConfirmResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyConfirm409JSONResponse ErrorEnvelope
+
+func (response PostAuthVerifyConfirm409JSONResponse) VisitPostAuthVerifyConfirmResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthVerifyConfirm429JSONResponse struct{ TooManyRequestsJSONResponse }
+
+func (response PostAuthVerifyConfirm429JSONResponse) VisitPostAuthVerifyConfirmResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBranchesRequestObject struct {
+}
+
+type ListBranchesResponseObject interface {
+	VisitListBranchesResponse(w http.ResponseWriter) error
+}
+
+type ListBranches200JSONResponse JsonObject
+
+func (response ListBranches200JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBranches400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListBranches400JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBranches401JSONResponse ErrorEnvelope
+
+func (response ListBranches401JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBranches403JSONResponse ErrorEnvelope
+
+func (response ListBranches403JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListBranches404JSONResponse ErrorEnvelope
+
+func (response ListBranches404JSONResponse) VisitListBranchesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBranchRequestObject struct {
+	Body *CreateBranchJSONRequestBody
+}
+
+type CreateBranchResponseObject interface {
+	VisitCreateBranchResponse(w http.ResponseWriter) error
+}
+
+type CreateBranch201JSONResponse JsonObject
+
+func (response CreateBranch201JSONResponse) VisitCreateBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBranch400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreateBranch400JSONResponse) VisitCreateBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBranch401JSONResponse ErrorEnvelope
+
+func (response CreateBranch401JSONResponse) VisitCreateBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBranch403JSONResponse ErrorEnvelope
+
+func (response CreateBranch403JSONResponse) VisitCreateBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBranch404JSONResponse ErrorEnvelope
+
+func (response CreateBranch404JSONResponse) VisitCreateBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateBranch409JSONResponse ErrorEnvelope
+
+func (response CreateBranch409JSONResponse) VisitCreateBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranchRequestObject struct {
+	BranchId openapi_types.UUID `json:"branchId"`
+}
+
+type GetBranchResponseObject interface {
+	VisitGetBranchResponse(w http.ResponseWriter) error
+}
+
+type GetBranch200JSONResponse JsonObject
+
+func (response GetBranch200JSONResponse) VisitGetBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranch400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetBranch400JSONResponse) VisitGetBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranch401JSONResponse ErrorEnvelope
+
+func (response GetBranch401JSONResponse) VisitGetBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranch403JSONResponse ErrorEnvelope
+
+func (response GetBranch403JSONResponse) VisitGetBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranch404JSONResponse ErrorEnvelope
+
+func (response GetBranch404JSONResponse) VisitGetBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchBranchRequestObject struct {
+	BranchId openapi_types.UUID `json:"branchId"`
+	Body     *PatchBranchJSONRequestBody
+}
+
+type PatchBranchResponseObject interface {
+	VisitPatchBranchResponse(w http.ResponseWriter) error
+}
+
+type PatchBranch200JSONResponse JsonObject
+
+func (response PatchBranch200JSONResponse) VisitPatchBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchBranch400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PatchBranch400JSONResponse) VisitPatchBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchBranch401JSONResponse ErrorEnvelope
+
+func (response PatchBranch401JSONResponse) VisitPatchBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchBranch403JSONResponse ErrorEnvelope
+
+func (response PatchBranch403JSONResponse) VisitPatchBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchBranch404JSONResponse ErrorEnvelope
+
+func (response PatchBranch404JSONResponse) VisitPatchBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchBranch409JSONResponse ErrorEnvelope
+
+func (response PatchBranch409JSONResponse) VisitPatchBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveBranchRequestObject struct {
+	BranchId openapi_types.UUID `json:"branchId"`
+}
+
+type ArchiveBranchResponseObject interface {
+	VisitArchiveBranchResponse(w http.ResponseWriter) error
+}
+
+type ArchiveBranch200JSONResponse JsonObject
+
+func (response ArchiveBranch200JSONResponse) VisitArchiveBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveBranch400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ArchiveBranch400JSONResponse) VisitArchiveBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveBranch401JSONResponse ErrorEnvelope
+
+func (response ArchiveBranch401JSONResponse) VisitArchiveBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveBranch403JSONResponse ErrorEnvelope
+
+func (response ArchiveBranch403JSONResponse) VisitArchiveBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveBranch404JSONResponse ErrorEnvelope
+
+func (response ArchiveBranch404JSONResponse) VisitArchiveBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveBranch409JSONResponse ErrorEnvelope
+
+func (response ArchiveBranch409JSONResponse) VisitArchiveBranchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranchHoursRequestObject struct {
+	BranchId openapi_types.UUID `json:"branchId"`
+}
+
+type GetBranchHoursResponseObject interface {
+	VisitGetBranchHoursResponse(w http.ResponseWriter) error
+}
+
+type GetBranchHours200JSONResponse JsonObject
+
+func (response GetBranchHours200JSONResponse) VisitGetBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranchHours400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetBranchHours400JSONResponse) VisitGetBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranchHours401JSONResponse ErrorEnvelope
+
+func (response GetBranchHours401JSONResponse) VisitGetBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranchHours403JSONResponse ErrorEnvelope
+
+func (response GetBranchHours403JSONResponse) VisitGetBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetBranchHours404JSONResponse ErrorEnvelope
+
+func (response GetBranchHours404JSONResponse) VisitGetBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutBranchHoursRequestObject struct {
+	BranchId openapi_types.UUID `json:"branchId"`
+	Body     *PutBranchHoursJSONRequestBody
+}
+
+type PutBranchHoursResponseObject interface {
+	VisitPutBranchHoursResponse(w http.ResponseWriter) error
+}
+
+type PutBranchHours200JSONResponse JsonObject
+
+func (response PutBranchHours200JSONResponse) VisitPutBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutBranchHours400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PutBranchHours400JSONResponse) VisitPutBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutBranchHours401JSONResponse ErrorEnvelope
+
+func (response PutBranchHours401JSONResponse) VisitPutBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutBranchHours403JSONResponse ErrorEnvelope
+
+func (response PutBranchHours403JSONResponse) VisitPutBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutBranchHours404JSONResponse ErrorEnvelope
+
+func (response PutBranchHours404JSONResponse) VisitPutBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutBranchHours409JSONResponse ErrorEnvelope
+
+func (response PutBranchHours409JSONResponse) VisitPutBranchHoursResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PostEchoRequestObject struct {
 	Body *PostEchoJSONRequestBody
 }
@@ -478,6 +5354,3863 @@ func (response PostEcho400JSONResponse) VisitPostEchoResponse(w http.ResponseWri
 	return err
 }
 
+type GetGymRequestObject struct {
+}
+
+type GetGymResponseObject interface {
+	VisitGetGymResponse(w http.ResponseWriter) error
+}
+
+type GetGym200JSONResponse JsonObject
+
+func (response GetGym200JSONResponse) VisitGetGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGym400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetGym400JSONResponse) VisitGetGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGym401JSONResponse ErrorEnvelope
+
+func (response GetGym401JSONResponse) VisitGetGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGym403JSONResponse ErrorEnvelope
+
+func (response GetGym403JSONResponse) VisitGetGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGym404JSONResponse ErrorEnvelope
+
+func (response GetGym404JSONResponse) VisitGetGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGymRequestObject struct {
+	Body *PatchGymJSONRequestBody
+}
+
+type PatchGymResponseObject interface {
+	VisitPatchGymResponse(w http.ResponseWriter) error
+}
+
+type PatchGym200JSONResponse JsonObject
+
+func (response PatchGym200JSONResponse) VisitPatchGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGym400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PatchGym400JSONResponse) VisitPatchGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGym401JSONResponse ErrorEnvelope
+
+func (response PatchGym401JSONResponse) VisitPatchGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGym403JSONResponse ErrorEnvelope
+
+func (response PatchGym403JSONResponse) VisitPatchGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGym404JSONResponse ErrorEnvelope
+
+func (response PatchGym404JSONResponse) VisitPatchGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGym409JSONResponse ErrorEnvelope
+
+func (response PatchGym409JSONResponse) VisitPatchGymResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGymBrandingRequestObject struct {
+}
+
+type GetGymBrandingResponseObject interface {
+	VisitGetGymBrandingResponse(w http.ResponseWriter) error
+}
+
+type GetGymBranding200JSONResponse JsonObject
+
+func (response GetGymBranding200JSONResponse) VisitGetGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGymBranding400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetGymBranding400JSONResponse) VisitGetGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGymBranding401JSONResponse ErrorEnvelope
+
+func (response GetGymBranding401JSONResponse) VisitGetGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGymBranding403JSONResponse ErrorEnvelope
+
+func (response GetGymBranding403JSONResponse) VisitGetGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGymBranding404JSONResponse ErrorEnvelope
+
+func (response GetGymBranding404JSONResponse) VisitGetGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGymBrandingRequestObject struct {
+	Body *PatchGymBrandingJSONRequestBody
+}
+
+type PatchGymBrandingResponseObject interface {
+	VisitPatchGymBrandingResponse(w http.ResponseWriter) error
+}
+
+type PatchGymBranding200JSONResponse JsonObject
+
+func (response PatchGymBranding200JSONResponse) VisitPatchGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGymBranding400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PatchGymBranding400JSONResponse) VisitPatchGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGymBranding401JSONResponse ErrorEnvelope
+
+func (response PatchGymBranding401JSONResponse) VisitPatchGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGymBranding403JSONResponse ErrorEnvelope
+
+func (response PatchGymBranding403JSONResponse) VisitPatchGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGymBranding404JSONResponse ErrorEnvelope
+
+func (response PatchGymBranding404JSONResponse) VisitPatchGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchGymBranding409JSONResponse ErrorEnvelope
+
+func (response PatchGymBranding409JSONResponse) VisitPatchGymBrandingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListHolidaysRequestObject struct {
+}
+
+type ListHolidaysResponseObject interface {
+	VisitListHolidaysResponse(w http.ResponseWriter) error
+}
+
+type ListHolidays200JSONResponse JsonObject
+
+func (response ListHolidays200JSONResponse) VisitListHolidaysResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListHolidays400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListHolidays400JSONResponse) VisitListHolidaysResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListHolidays401JSONResponse ErrorEnvelope
+
+func (response ListHolidays401JSONResponse) VisitListHolidaysResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListHolidays403JSONResponse ErrorEnvelope
+
+func (response ListHolidays403JSONResponse) VisitListHolidaysResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListHolidays404JSONResponse ErrorEnvelope
+
+func (response ListHolidays404JSONResponse) VisitListHolidaysResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHolidayRequestObject struct {
+	Body *CreateHolidayJSONRequestBody
+}
+
+type CreateHolidayResponseObject interface {
+	VisitCreateHolidayResponse(w http.ResponseWriter) error
+}
+
+type CreateHoliday201JSONResponse JsonObject
+
+func (response CreateHoliday201JSONResponse) VisitCreateHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHoliday400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreateHoliday400JSONResponse) VisitCreateHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHoliday401JSONResponse ErrorEnvelope
+
+func (response CreateHoliday401JSONResponse) VisitCreateHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHoliday403JSONResponse ErrorEnvelope
+
+func (response CreateHoliday403JSONResponse) VisitCreateHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHoliday404JSONResponse ErrorEnvelope
+
+func (response CreateHoliday404JSONResponse) VisitCreateHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateHoliday409JSONResponse ErrorEnvelope
+
+func (response CreateHoliday409JSONResponse) VisitCreateHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteHolidayRequestObject struct {
+	HolidayId openapi_types.UUID `json:"holidayId"`
+}
+
+type DeleteHolidayResponseObject interface {
+	VisitDeleteHolidayResponse(w http.ResponseWriter) error
+}
+
+type DeleteHoliday204Response struct {
+}
+
+func (response DeleteHoliday204Response) VisitDeleteHolidayResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteHoliday400JSONResponse struct{ ErrorJSONResponse }
+
+func (response DeleteHoliday400JSONResponse) VisitDeleteHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteHoliday401JSONResponse ErrorEnvelope
+
+func (response DeleteHoliday401JSONResponse) VisitDeleteHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteHoliday403JSONResponse ErrorEnvelope
+
+func (response DeleteHoliday403JSONResponse) VisitDeleteHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteHoliday404JSONResponse ErrorEnvelope
+
+func (response DeleteHoliday404JSONResponse) VisitDeleteHolidayResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLeadsRequestObject struct {
+	Params ListLeadsParams
+}
+
+type ListLeadsResponseObject interface {
+	VisitListLeadsResponse(w http.ResponseWriter) error
+}
+
+type ListLeads200JSONResponse CursorPage
+
+func (response ListLeads200JSONResponse) VisitListLeadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLeads400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListLeads400JSONResponse) VisitListLeadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLeads401JSONResponse ErrorEnvelope
+
+func (response ListLeads401JSONResponse) VisitListLeadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLeads403JSONResponse ErrorEnvelope
+
+func (response ListLeads403JSONResponse) VisitListLeadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLeads404JSONResponse ErrorEnvelope
+
+func (response ListLeads404JSONResponse) VisitListLeadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLeads429JSONResponse ErrorEnvelope
+
+func (response ListLeads429JSONResponse) VisitListLeadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLeadRequestObject struct {
+	Body *CreateLeadJSONRequestBody
+}
+
+type CreateLeadResponseObject interface {
+	VisitCreateLeadResponse(w http.ResponseWriter) error
+}
+
+type CreateLead202Response struct {
+}
+
+func (response CreateLead202Response) VisitCreateLeadResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type CreateLead400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreateLead400JSONResponse) VisitCreateLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLead429JSONResponse ErrorEnvelope
+
+func (response CreateLead429JSONResponse) VisitCreateLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLeadRequestObject struct {
+	LeadId openapi_types.UUID `json:"leadId"`
+}
+
+type GetLeadResponseObject interface {
+	VisitGetLeadResponse(w http.ResponseWriter) error
+}
+
+type GetLead200JSONResponse JsonObject
+
+func (response GetLead200JSONResponse) VisitGetLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLead400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetLead400JSONResponse) VisitGetLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLead401JSONResponse ErrorEnvelope
+
+func (response GetLead401JSONResponse) VisitGetLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLead403JSONResponse ErrorEnvelope
+
+func (response GetLead403JSONResponse) VisitGetLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLead404JSONResponse ErrorEnvelope
+
+func (response GetLead404JSONResponse) VisitGetLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetLead429JSONResponse ErrorEnvelope
+
+func (response GetLead429JSONResponse) VisitGetLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchLeadRequestObject struct {
+	LeadId openapi_types.UUID `json:"leadId"`
+	Body   *PatchLeadJSONRequestBody
+}
+
+type PatchLeadResponseObject interface {
+	VisitPatchLeadResponse(w http.ResponseWriter) error
+}
+
+type PatchLead200JSONResponse JsonObject
+
+func (response PatchLead200JSONResponse) VisitPatchLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchLead400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PatchLead400JSONResponse) VisitPatchLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchLead401JSONResponse ErrorEnvelope
+
+func (response PatchLead401JSONResponse) VisitPatchLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchLead403JSONResponse ErrorEnvelope
+
+func (response PatchLead403JSONResponse) VisitPatchLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchLead404JSONResponse ErrorEnvelope
+
+func (response PatchLead404JSONResponse) VisitPatchLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchLead409JSONResponse ErrorEnvelope
+
+func (response PatchLead409JSONResponse) VisitPatchLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchLead429JSONResponse ErrorEnvelope
+
+func (response PatchLead429JSONResponse) VisitPatchLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConvertLeadRequestObject struct {
+	LeadId openapi_types.UUID `json:"leadId"`
+	Body   *ConvertLeadJSONRequestBody
+}
+
+type ConvertLeadResponseObject interface {
+	VisitConvertLeadResponse(w http.ResponseWriter) error
+}
+
+type ConvertLead201JSONResponse JsonObject
+
+func (response ConvertLead201JSONResponse) VisitConvertLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConvertLead400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ConvertLead400JSONResponse) VisitConvertLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConvertLead401JSONResponse ErrorEnvelope
+
+func (response ConvertLead401JSONResponse) VisitConvertLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConvertLead403JSONResponse ErrorEnvelope
+
+func (response ConvertLead403JSONResponse) VisitConvertLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConvertLead404JSONResponse ErrorEnvelope
+
+func (response ConvertLead404JSONResponse) VisitConvertLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConvertLead409JSONResponse ErrorEnvelope
+
+func (response ConvertLead409JSONResponse) VisitConvertLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConvertLead429JSONResponse ErrorEnvelope
+
+func (response ConvertLead429JSONResponse) VisitConvertLeadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLeadNoteRequestObject struct {
+	LeadId openapi_types.UUID `json:"leadId"`
+	Body   *CreateLeadNoteJSONRequestBody
+}
+
+type CreateLeadNoteResponseObject interface {
+	VisitCreateLeadNoteResponse(w http.ResponseWriter) error
+}
+
+type CreateLeadNote201JSONResponse JsonObject
+
+func (response CreateLeadNote201JSONResponse) VisitCreateLeadNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLeadNote400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreateLeadNote400JSONResponse) VisitCreateLeadNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLeadNote401JSONResponse ErrorEnvelope
+
+func (response CreateLeadNote401JSONResponse) VisitCreateLeadNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLeadNote403JSONResponse ErrorEnvelope
+
+func (response CreateLeadNote403JSONResponse) VisitCreateLeadNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLeadNote404JSONResponse ErrorEnvelope
+
+func (response CreateLeadNote404JSONResponse) VisitCreateLeadNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLeadNote409JSONResponse ErrorEnvelope
+
+func (response CreateLeadNote409JSONResponse) VisitCreateLeadNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateLeadNote429JSONResponse ErrorEnvelope
+
+func (response CreateLeadNote429JSONResponse) VisitCreateLeadNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(429)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMeRequestObject struct {
+}
+
+type GetMeResponseObject interface {
+	VisitGetMeResponse(w http.ResponseWriter) error
+}
+
+type GetMe200JSONResponse MeResponse
+
+func (response GetMe200JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMe400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetMe400JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMe401JSONResponse ErrorEnvelope
+
+func (response GetMe401JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMe403JSONResponse ErrorEnvelope
+
+func (response GetMe403JSONResponse) VisitGetMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMeRequestObject struct {
+	Body *PatchMeJSONRequestBody
+}
+
+type PatchMeResponseObject interface {
+	VisitPatchMeResponse(w http.ResponseWriter) error
+}
+
+type PatchMe200JSONResponse MeResponse
+
+func (response PatchMe200JSONResponse) VisitPatchMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMe400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PatchMe400JSONResponse) VisitPatchMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMe401JSONResponse ErrorEnvelope
+
+func (response PatchMe401JSONResponse) VisitPatchMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMe403JSONResponse ErrorEnvelope
+
+func (response PatchMe403JSONResponse) VisitPatchMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMe409JSONResponse ErrorEnvelope
+
+func (response PatchMe409JSONResponse) VisitPatchMeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMySessionsRequestObject struct {
+}
+
+type ListMySessionsResponseObject interface {
+	VisitListMySessionsResponse(w http.ResponseWriter) error
+}
+
+type ListMySessions200JSONResponse SessionsResponse
+
+func (response ListMySessions200JSONResponse) VisitListMySessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMySessions400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListMySessions400JSONResponse) VisitListMySessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMySessions401JSONResponse ErrorEnvelope
+
+func (response ListMySessions401JSONResponse) VisitListMySessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMySessions403JSONResponse ErrorEnvelope
+
+func (response ListMySessions403JSONResponse) VisitListMySessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMySessions404JSONResponse ErrorEnvelope
+
+func (response ListMySessions404JSONResponse) VisitListMySessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeMySessionRequestObject struct {
+	SessionId openapi_types.UUID `json:"sessionId"`
+}
+
+type RevokeMySessionResponseObject interface {
+	VisitRevokeMySessionResponse(w http.ResponseWriter) error
+}
+
+type RevokeMySession204Response struct {
+}
+
+func (response RevokeMySession204Response) VisitRevokeMySessionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RevokeMySession400JSONResponse struct{ ErrorJSONResponse }
+
+func (response RevokeMySession400JSONResponse) VisitRevokeMySessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeMySession401JSONResponse ErrorEnvelope
+
+func (response RevokeMySession401JSONResponse) VisitRevokeMySessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeMySession403JSONResponse ErrorEnvelope
+
+func (response RevokeMySession403JSONResponse) VisitRevokeMySessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeMySession404JSONResponse ErrorEnvelope
+
+func (response RevokeMySession404JSONResponse) VisitRevokeMySessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembersRequestObject struct {
+	Params ListMembersParams
+}
+
+type ListMembersResponseObject interface {
+	VisitListMembersResponse(w http.ResponseWriter) error
+}
+
+type ListMembers200JSONResponse CursorPage
+
+func (response ListMembers200JSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembers400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListMembers400JSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembers401JSONResponse ErrorEnvelope
+
+func (response ListMembers401JSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMembers403JSONResponse ErrorEnvelope
+
+func (response ListMembers403JSONResponse) VisitListMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMemberRequestObject struct {
+	Body *CreateMemberJSONRequestBody
+}
+
+type CreateMemberResponseObject interface {
+	VisitCreateMemberResponse(w http.ResponseWriter) error
+}
+
+type CreateMember201JSONResponse JsonObject
+
+func (response CreateMember201JSONResponse) VisitCreateMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMember400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreateMember400JSONResponse) VisitCreateMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMember401JSONResponse ErrorEnvelope
+
+func (response CreateMember401JSONResponse) VisitCreateMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMember403JSONResponse ErrorEnvelope
+
+func (response CreateMember403JSONResponse) VisitCreateMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMember404JSONResponse ErrorEnvelope
+
+func (response CreateMember404JSONResponse) VisitCreateMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMember409JSONResponse ErrorEnvelope
+
+func (response CreateMember409JSONResponse) VisitCreateMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportMembersRequestObject struct {
+}
+
+type ExportMembersResponseObject interface {
+	VisitExportMembersResponse(w http.ResponseWriter) error
+}
+
+type ExportMembers200TextcsvResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response ExportMembers200TextcsvResponse) VisitExportMembersResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/csv")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type ExportMembers400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ExportMembers400JSONResponse) VisitExportMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportMembers401JSONResponse ErrorEnvelope
+
+func (response ExportMembers401JSONResponse) VisitExportMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ExportMembers403JSONResponse ErrorEnvelope
+
+func (response ExportMembers403JSONResponse) VisitExportMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportMembersRequestObject struct {
+	Params ImportMembersParams
+	Body   *multipart.Reader
+}
+
+type ImportMembersResponseObject interface {
+	VisitImportMembersResponse(w http.ResponseWriter) error
+}
+
+type ImportMembers200JSONResponse JsonObject
+
+func (response ImportMembers200JSONResponse) VisitImportMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportMembers400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ImportMembers400JSONResponse) VisitImportMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportMembers401JSONResponse ErrorEnvelope
+
+func (response ImportMembers401JSONResponse) VisitImportMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportMembers403JSONResponse ErrorEnvelope
+
+func (response ImportMembers403JSONResponse) VisitImportMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ImportMembers409JSONResponse ErrorEnvelope
+
+func (response ImportMembers409JSONResponse) VisitImportMembersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMemberRequestObject struct {
+	MemberId openapi_types.UUID `json:"memberId"`
+}
+
+type GetMemberResponseObject interface {
+	VisitGetMemberResponse(w http.ResponseWriter) error
+}
+
+type GetMember200JSONResponse JsonObject
+
+func (response GetMember200JSONResponse) VisitGetMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMember400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetMember400JSONResponse) VisitGetMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMember401JSONResponse ErrorEnvelope
+
+func (response GetMember401JSONResponse) VisitGetMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMember403JSONResponse ErrorEnvelope
+
+func (response GetMember403JSONResponse) VisitGetMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMember404JSONResponse ErrorEnvelope
+
+func (response GetMember404JSONResponse) VisitGetMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMemberRequestObject struct {
+	MemberId openapi_types.UUID `json:"memberId"`
+	Body     *PatchMemberJSONRequestBody
+}
+
+type PatchMemberResponseObject interface {
+	VisitPatchMemberResponse(w http.ResponseWriter) error
+}
+
+type PatchMember200JSONResponse JsonObject
+
+func (response PatchMember200JSONResponse) VisitPatchMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMember400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PatchMember400JSONResponse) VisitPatchMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMember401JSONResponse ErrorEnvelope
+
+func (response PatchMember401JSONResponse) VisitPatchMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMember403JSONResponse ErrorEnvelope
+
+func (response PatchMember403JSONResponse) VisitPatchMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMember404JSONResponse ErrorEnvelope
+
+func (response PatchMember404JSONResponse) VisitPatchMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchMember409JSONResponse ErrorEnvelope
+
+func (response PatchMember409JSONResponse) VisitPatchMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveMemberRequestObject struct {
+	MemberId openapi_types.UUID `json:"memberId"`
+}
+
+type ArchiveMemberResponseObject interface {
+	VisitArchiveMemberResponse(w http.ResponseWriter) error
+}
+
+type ArchiveMember200JSONResponse JsonObject
+
+func (response ArchiveMember200JSONResponse) VisitArchiveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveMember400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ArchiveMember400JSONResponse) VisitArchiveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveMember401JSONResponse ErrorEnvelope
+
+func (response ArchiveMember401JSONResponse) VisitArchiveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveMember403JSONResponse ErrorEnvelope
+
+func (response ArchiveMember403JSONResponse) VisitArchiveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveMember404JSONResponse ErrorEnvelope
+
+func (response ArchiveMember404JSONResponse) VisitArchiveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ArchiveMember409JSONResponse ErrorEnvelope
+
+func (response ArchiveMember409JSONResponse) VisitArchiveMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberMembershipsRequestObject struct {
+	MemberId openapi_types.UUID `json:"memberId"`
+}
+
+type ListMemberMembershipsResponseObject interface {
+	VisitListMemberMembershipsResponse(w http.ResponseWriter) error
+}
+
+type ListMemberMemberships200JSONResponse JsonObject
+
+func (response ListMemberMemberships200JSONResponse) VisitListMemberMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberMemberships400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListMemberMemberships400JSONResponse) VisitListMemberMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberMemberships401JSONResponse ErrorEnvelope
+
+func (response ListMemberMemberships401JSONResponse) VisitListMemberMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberMemberships403JSONResponse ErrorEnvelope
+
+func (response ListMemberMemberships403JSONResponse) VisitListMemberMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberMemberships404JSONResponse ErrorEnvelope
+
+func (response ListMemberMemberships404JSONResponse) VisitListMemberMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AssignMembershipRequestObject struct {
+	MemberId openapi_types.UUID `json:"memberId"`
+	Body     *AssignMembershipJSONRequestBody
+}
+
+type AssignMembershipResponseObject interface {
+	VisitAssignMembershipResponse(w http.ResponseWriter) error
+}
+
+type AssignMembership201JSONResponse JsonObject
+
+func (response AssignMembership201JSONResponse) VisitAssignMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AssignMembership400JSONResponse struct{ ErrorJSONResponse }
+
+func (response AssignMembership400JSONResponse) VisitAssignMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AssignMembership401JSONResponse ErrorEnvelope
+
+func (response AssignMembership401JSONResponse) VisitAssignMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AssignMembership403JSONResponse ErrorEnvelope
+
+func (response AssignMembership403JSONResponse) VisitAssignMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AssignMembership404JSONResponse ErrorEnvelope
+
+func (response AssignMembership404JSONResponse) VisitAssignMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AssignMembership409JSONResponse ErrorEnvelope
+
+func (response AssignMembership409JSONResponse) VisitAssignMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberNotesRequestObject struct {
+	MemberId openapi_types.UUID `json:"memberId"`
+	Params   ListMemberNotesParams
+}
+
+type ListMemberNotesResponseObject interface {
+	VisitListMemberNotesResponse(w http.ResponseWriter) error
+}
+
+type ListMemberNotes200JSONResponse CursorPage
+
+func (response ListMemberNotes200JSONResponse) VisitListMemberNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberNotes400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListMemberNotes400JSONResponse) VisitListMemberNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberNotes401JSONResponse ErrorEnvelope
+
+func (response ListMemberNotes401JSONResponse) VisitListMemberNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberNotes403JSONResponse ErrorEnvelope
+
+func (response ListMemberNotes403JSONResponse) VisitListMemberNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMemberNotes404JSONResponse ErrorEnvelope
+
+func (response ListMemberNotes404JSONResponse) VisitListMemberNotesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMemberNoteRequestObject struct {
+	MemberId openapi_types.UUID `json:"memberId"`
+	Body     *CreateMemberNoteJSONRequestBody
+}
+
+type CreateMemberNoteResponseObject interface {
+	VisitCreateMemberNoteResponse(w http.ResponseWriter) error
+}
+
+type CreateMemberNote201JSONResponse JsonObject
+
+func (response CreateMemberNote201JSONResponse) VisitCreateMemberNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMemberNote400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreateMemberNote400JSONResponse) VisitCreateMemberNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMemberNote401JSONResponse ErrorEnvelope
+
+func (response CreateMemberNote401JSONResponse) VisitCreateMemberNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMemberNote403JSONResponse ErrorEnvelope
+
+func (response CreateMemberNote403JSONResponse) VisitCreateMemberNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMemberNote404JSONResponse ErrorEnvelope
+
+func (response CreateMemberNote404JSONResponse) VisitCreateMemberNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMemberNote409JSONResponse ErrorEnvelope
+
+func (response CreateMemberNote409JSONResponse) VisitCreateMemberNoteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreMemberRequestObject struct {
+	MemberId openapi_types.UUID `json:"memberId"`
+}
+
+type RestoreMemberResponseObject interface {
+	VisitRestoreMemberResponse(w http.ResponseWriter) error
+}
+
+type RestoreMember200JSONResponse JsonObject
+
+func (response RestoreMember200JSONResponse) VisitRestoreMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreMember400JSONResponse struct{ ErrorJSONResponse }
+
+func (response RestoreMember400JSONResponse) VisitRestoreMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreMember401JSONResponse ErrorEnvelope
+
+func (response RestoreMember401JSONResponse) VisitRestoreMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreMember403JSONResponse ErrorEnvelope
+
+func (response RestoreMember403JSONResponse) VisitRestoreMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RestoreMember404JSONResponse ErrorEnvelope
+
+func (response RestoreMember404JSONResponse) VisitRestoreMemberResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListExpiringMembershipsRequestObject struct {
+	Params ListExpiringMembershipsParams
+}
+
+type ListExpiringMembershipsResponseObject interface {
+	VisitListExpiringMembershipsResponse(w http.ResponseWriter) error
+}
+
+type ListExpiringMemberships200JSONResponse CursorPage
+
+func (response ListExpiringMemberships200JSONResponse) VisitListExpiringMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListExpiringMemberships400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListExpiringMemberships400JSONResponse) VisitListExpiringMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListExpiringMemberships401JSONResponse ErrorEnvelope
+
+func (response ListExpiringMemberships401JSONResponse) VisitListExpiringMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListExpiringMemberships403JSONResponse ErrorEnvelope
+
+func (response ListExpiringMemberships403JSONResponse) VisitListExpiringMembershipsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelMembershipRequestObject struct {
+	MembershipId openapi_types.UUID `json:"membershipId"`
+	Body         *CancelMembershipJSONRequestBody
+}
+
+type CancelMembershipResponseObject interface {
+	VisitCancelMembershipResponse(w http.ResponseWriter) error
+}
+
+type CancelMembership200JSONResponse JsonObject
+
+func (response CancelMembership200JSONResponse) VisitCancelMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelMembership400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CancelMembership400JSONResponse) VisitCancelMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelMembership401JSONResponse ErrorEnvelope
+
+func (response CancelMembership401JSONResponse) VisitCancelMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelMembership403JSONResponse ErrorEnvelope
+
+func (response CancelMembership403JSONResponse) VisitCancelMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelMembership404JSONResponse ErrorEnvelope
+
+func (response CancelMembership404JSONResponse) VisitCancelMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CancelMembership409JSONResponse ErrorEnvelope
+
+func (response CancelMembership409JSONResponse) VisitCancelMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FreezeMembershipRequestObject struct {
+	MembershipId openapi_types.UUID `json:"membershipId"`
+	Body         *FreezeMembershipJSONRequestBody
+}
+
+type FreezeMembershipResponseObject interface {
+	VisitFreezeMembershipResponse(w http.ResponseWriter) error
+}
+
+type FreezeMembership200JSONResponse JsonObject
+
+func (response FreezeMembership200JSONResponse) VisitFreezeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FreezeMembership400JSONResponse struct{ ErrorJSONResponse }
+
+func (response FreezeMembership400JSONResponse) VisitFreezeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FreezeMembership401JSONResponse ErrorEnvelope
+
+func (response FreezeMembership401JSONResponse) VisitFreezeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FreezeMembership403JSONResponse ErrorEnvelope
+
+func (response FreezeMembership403JSONResponse) VisitFreezeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FreezeMembership404JSONResponse ErrorEnvelope
+
+func (response FreezeMembership404JSONResponse) VisitFreezeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FreezeMembership409JSONResponse ErrorEnvelope
+
+func (response FreezeMembership409JSONResponse) VisitFreezeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenewMembershipRequestObject struct {
+	MembershipId openapi_types.UUID `json:"membershipId"`
+}
+
+type RenewMembershipResponseObject interface {
+	VisitRenewMembershipResponse(w http.ResponseWriter) error
+}
+
+type RenewMembership200JSONResponse JsonObject
+
+func (response RenewMembership200JSONResponse) VisitRenewMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenewMembership400JSONResponse struct{ ErrorJSONResponse }
+
+func (response RenewMembership400JSONResponse) VisitRenewMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenewMembership401JSONResponse ErrorEnvelope
+
+func (response RenewMembership401JSONResponse) VisitRenewMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenewMembership403JSONResponse ErrorEnvelope
+
+func (response RenewMembership403JSONResponse) VisitRenewMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenewMembership404JSONResponse ErrorEnvelope
+
+func (response RenewMembership404JSONResponse) VisitRenewMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenewMembership409JSONResponse ErrorEnvelope
+
+func (response RenewMembership409JSONResponse) VisitRenewMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeMembershipRequestObject struct {
+	MembershipId openapi_types.UUID `json:"membershipId"`
+}
+
+type ResumeMembershipResponseObject interface {
+	VisitResumeMembershipResponse(w http.ResponseWriter) error
+}
+
+type ResumeMembership200JSONResponse JsonObject
+
+func (response ResumeMembership200JSONResponse) VisitResumeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeMembership400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ResumeMembership400JSONResponse) VisitResumeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeMembership401JSONResponse ErrorEnvelope
+
+func (response ResumeMembership401JSONResponse) VisitResumeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeMembership403JSONResponse ErrorEnvelope
+
+func (response ResumeMembership403JSONResponse) VisitResumeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeMembership404JSONResponse ErrorEnvelope
+
+func (response ResumeMembership404JSONResponse) VisitResumeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeMembership409JSONResponse ErrorEnvelope
+
+func (response ResumeMembership409JSONResponse) VisitResumeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeMembershipRequestObject struct {
+	MembershipId openapi_types.UUID `json:"membershipId"`
+	Body         *UpgradeMembershipJSONRequestBody
+}
+
+type UpgradeMembershipResponseObject interface {
+	VisitUpgradeMembershipResponse(w http.ResponseWriter) error
+}
+
+type UpgradeMembership200JSONResponse JsonObject
+
+func (response UpgradeMembership200JSONResponse) VisitUpgradeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeMembership400JSONResponse struct{ ErrorJSONResponse }
+
+func (response UpgradeMembership400JSONResponse) VisitUpgradeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeMembership401JSONResponse ErrorEnvelope
+
+func (response UpgradeMembership401JSONResponse) VisitUpgradeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeMembership403JSONResponse ErrorEnvelope
+
+func (response UpgradeMembership403JSONResponse) VisitUpgradeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeMembership404JSONResponse ErrorEnvelope
+
+func (response UpgradeMembership404JSONResponse) VisitUpgradeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpgradeMembership409JSONResponse ErrorEnvelope
+
+func (response UpgradeMembership409JSONResponse) VisitUpgradeMembershipResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlansRequestObject struct {
+}
+
+type ListPlansResponseObject interface {
+	VisitListPlansResponse(w http.ResponseWriter) error
+}
+
+type ListPlans200JSONResponse JsonObject
+
+func (response ListPlans200JSONResponse) VisitListPlansResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlans400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListPlans400JSONResponse) VisitListPlansResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlans401JSONResponse ErrorEnvelope
+
+func (response ListPlans401JSONResponse) VisitListPlansResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlans403JSONResponse ErrorEnvelope
+
+func (response ListPlans403JSONResponse) VisitListPlansResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPlans404JSONResponse ErrorEnvelope
+
+func (response ListPlans404JSONResponse) VisitListPlansResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlanRequestObject struct {
+	Body *CreatePlanJSONRequestBody
+}
+
+type CreatePlanResponseObject interface {
+	VisitCreatePlanResponse(w http.ResponseWriter) error
+}
+
+type CreatePlan201JSONResponse JsonObject
+
+func (response CreatePlan201JSONResponse) VisitCreatePlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlan400JSONResponse struct{ ErrorJSONResponse }
+
+func (response CreatePlan400JSONResponse) VisitCreatePlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlan401JSONResponse ErrorEnvelope
+
+func (response CreatePlan401JSONResponse) VisitCreatePlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlan403JSONResponse ErrorEnvelope
+
+func (response CreatePlan403JSONResponse) VisitCreatePlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlan404JSONResponse ErrorEnvelope
+
+func (response CreatePlan404JSONResponse) VisitCreatePlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePlan409JSONResponse ErrorEnvelope
+
+func (response CreatePlan409JSONResponse) VisitCreatePlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPlanRequestObject struct {
+	PlanId openapi_types.UUID `json:"planId"`
+}
+
+type GetPlanResponseObject interface {
+	VisitGetPlanResponse(w http.ResponseWriter) error
+}
+
+type GetPlan200JSONResponse JsonObject
+
+func (response GetPlan200JSONResponse) VisitGetPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPlan400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetPlan400JSONResponse) VisitGetPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPlan401JSONResponse ErrorEnvelope
+
+func (response GetPlan401JSONResponse) VisitGetPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPlan403JSONResponse ErrorEnvelope
+
+func (response GetPlan403JSONResponse) VisitGetPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPlan404JSONResponse ErrorEnvelope
+
+func (response GetPlan404JSONResponse) VisitGetPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchPlanRequestObject struct {
+	PlanId openapi_types.UUID `json:"planId"`
+	Body   *PatchPlanJSONRequestBody
+}
+
+type PatchPlanResponseObject interface {
+	VisitPatchPlanResponse(w http.ResponseWriter) error
+}
+
+type PatchPlan200JSONResponse JsonObject
+
+func (response PatchPlan200JSONResponse) VisitPatchPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchPlan400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PatchPlan400JSONResponse) VisitPatchPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchPlan401JSONResponse ErrorEnvelope
+
+func (response PatchPlan401JSONResponse) VisitPatchPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchPlan403JSONResponse ErrorEnvelope
+
+func (response PatchPlan403JSONResponse) VisitPatchPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchPlan404JSONResponse ErrorEnvelope
+
+func (response PatchPlan404JSONResponse) VisitPatchPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchPlan409JSONResponse ErrorEnvelope
+
+func (response PatchPlan409JSONResponse) VisitPatchPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListStaffRequestObject struct {
+	Params ListStaffParams
+}
+
+type ListStaffResponseObject interface {
+	VisitListStaffResponse(w http.ResponseWriter) error
+}
+
+type ListStaff200JSONResponse CursorPage
+
+func (response ListStaff200JSONResponse) VisitListStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListStaff400JSONResponse struct{ ErrorJSONResponse }
+
+func (response ListStaff400JSONResponse) VisitListStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListStaff401JSONResponse ErrorEnvelope
+
+func (response ListStaff401JSONResponse) VisitListStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListStaff403JSONResponse ErrorEnvelope
+
+func (response ListStaff403JSONResponse) VisitListStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStaffRequestObject struct {
+	StaffId openapi_types.UUID `json:"staffId"`
+}
+
+type GetStaffResponseObject interface {
+	VisitGetStaffResponse(w http.ResponseWriter) error
+}
+
+type GetStaff200JSONResponse JsonObject
+
+func (response GetStaff200JSONResponse) VisitGetStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStaff400JSONResponse struct{ ErrorJSONResponse }
+
+func (response GetStaff400JSONResponse) VisitGetStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStaff401JSONResponse ErrorEnvelope
+
+func (response GetStaff401JSONResponse) VisitGetStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStaff403JSONResponse ErrorEnvelope
+
+func (response GetStaff403JSONResponse) VisitGetStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetStaff404JSONResponse ErrorEnvelope
+
+func (response GetStaff404JSONResponse) VisitGetStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchStaffRequestObject struct {
+	StaffId openapi_types.UUID `json:"staffId"`
+	Body    *PatchStaffJSONRequestBody
+}
+
+type PatchStaffResponseObject interface {
+	VisitPatchStaffResponse(w http.ResponseWriter) error
+}
+
+type PatchStaff200JSONResponse JsonObject
+
+func (response PatchStaff200JSONResponse) VisitPatchStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchStaff400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PatchStaff400JSONResponse) VisitPatchStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchStaff401JSONResponse ErrorEnvelope
+
+func (response PatchStaff401JSONResponse) VisitPatchStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchStaff403JSONResponse ErrorEnvelope
+
+func (response PatchStaff403JSONResponse) VisitPatchStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchStaff404JSONResponse ErrorEnvelope
+
+func (response PatchStaff404JSONResponse) VisitPatchStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PatchStaff409JSONResponse ErrorEnvelope
+
+func (response PatchStaff409JSONResponse) VisitPatchStaffResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffDeactivateRequestObject struct {
+	StaffId openapi_types.UUID `json:"staffId"`
+}
+
+type PostStaffDeactivateResponseObject interface {
+	VisitPostStaffDeactivateResponse(w http.ResponseWriter) error
+}
+
+type PostStaffDeactivate200JSONResponse JsonObject
+
+func (response PostStaffDeactivate200JSONResponse) VisitPostStaffDeactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffDeactivate400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostStaffDeactivate400JSONResponse) VisitPostStaffDeactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffDeactivate401JSONResponse ErrorEnvelope
+
+func (response PostStaffDeactivate401JSONResponse) VisitPostStaffDeactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffDeactivate403JSONResponse ErrorEnvelope
+
+func (response PostStaffDeactivate403JSONResponse) VisitPostStaffDeactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffDeactivate404JSONResponse ErrorEnvelope
+
+func (response PostStaffDeactivate404JSONResponse) VisitPostStaffDeactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffDeactivate409JSONResponse ErrorEnvelope
+
+func (response PostStaffDeactivate409JSONResponse) VisitPostStaffDeactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffReactivateRequestObject struct {
+	StaffId openapi_types.UUID `json:"staffId"`
+}
+
+type PostStaffReactivateResponseObject interface {
+	VisitPostStaffReactivateResponse(w http.ResponseWriter) error
+}
+
+type PostStaffReactivate200JSONResponse JsonObject
+
+func (response PostStaffReactivate200JSONResponse) VisitPostStaffReactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffReactivate400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostStaffReactivate400JSONResponse) VisitPostStaffReactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffReactivate401JSONResponse ErrorEnvelope
+
+func (response PostStaffReactivate401JSONResponse) VisitPostStaffReactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffReactivate403JSONResponse ErrorEnvelope
+
+func (response PostStaffReactivate403JSONResponse) VisitPostStaffReactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffReactivate404JSONResponse ErrorEnvelope
+
+func (response PostStaffReactivate404JSONResponse) VisitPostStaffReactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffReactivate409JSONResponse ErrorEnvelope
+
+func (response PostStaffReactivate409JSONResponse) VisitPostStaffReactivateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffRevokeSessionsRequestObject struct {
+	StaffId openapi_types.UUID `json:"staffId"`
+}
+
+type PostStaffRevokeSessionsResponseObject interface {
+	VisitPostStaffRevokeSessionsResponse(w http.ResponseWriter) error
+}
+
+type PostStaffRevokeSessions204Response struct {
+}
+
+func (response PostStaffRevokeSessions204Response) VisitPostStaffRevokeSessionsResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PostStaffRevokeSessions400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PostStaffRevokeSessions400JSONResponse) VisitPostStaffRevokeSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffRevokeSessions401JSONResponse ErrorEnvelope
+
+func (response PostStaffRevokeSessions401JSONResponse) VisitPostStaffRevokeSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffRevokeSessions403JSONResponse ErrorEnvelope
+
+func (response PostStaffRevokeSessions403JSONResponse) VisitPostStaffRevokeSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostStaffRevokeSessions404JSONResponse ErrorEnvelope
+
+func (response PostStaffRevokeSessions404JSONResponse) VisitPostStaffRevokeSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutStaffRolesRequestObject struct {
+	StaffId openapi_types.UUID `json:"staffId"`
+	Body    *PutStaffRolesJSONRequestBody
+}
+
+type PutStaffRolesResponseObject interface {
+	VisitPutStaffRolesResponse(w http.ResponseWriter) error
+}
+
+type PutStaffRoles200JSONResponse JsonObject
+
+func (response PutStaffRoles200JSONResponse) VisitPutStaffRolesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutStaffRoles400JSONResponse struct{ ErrorJSONResponse }
+
+func (response PutStaffRoles400JSONResponse) VisitPutStaffRolesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutStaffRoles401JSONResponse ErrorEnvelope
+
+func (response PutStaffRoles401JSONResponse) VisitPutStaffRolesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutStaffRoles403JSONResponse ErrorEnvelope
+
+func (response PutStaffRoles403JSONResponse) VisitPutStaffRolesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutStaffRoles404JSONResponse ErrorEnvelope
+
+func (response PutStaffRoles404JSONResponse) VisitPutStaffRolesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutStaffRoles409JSONResponse ErrorEnvelope
+
+func (response PutStaffRoles409JSONResponse) VisitPutStaffRolesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// GetHealth Liveness probe
@@ -486,9 +9219,207 @@ type StrictServerInterface interface {
 	// GetReady Readiness probe
 	// (GET /ready)
 	GetReady(ctx context.Context, request GetReadyRequestObject) (GetReadyResponseObject, error)
+	// ListAuditEvents List audit events
+	// (GET /v1/audit-events)
+	ListAuditEvents(ctx context.Context, request ListAuditEventsRequestObject) (ListAuditEventsResponseObject, error)
+	// PostAuthBootstrapOwner Create first owner
+	// (POST /v1/auth/bootstrap-owner)
+	PostAuthBootstrapOwner(ctx context.Context, request PostAuthBootstrapOwnerRequestObject) (PostAuthBootstrapOwnerResponseObject, error)
+	// PostAuthInvite Invite staff
+	// (POST /v1/auth/invite)
+	PostAuthInvite(ctx context.Context, request PostAuthInviteRequestObject) (PostAuthInviteResponseObject, error)
+	// PostAuthInviteAccept Accept staff invite
+	// (POST /v1/auth/invite/accept)
+	PostAuthInviteAccept(ctx context.Context, request PostAuthInviteAcceptRequestObject) (PostAuthInviteAcceptResponseObject, error)
+	// PostAuthLogin Password login
+	// (POST /v1/auth/login)
+	PostAuthLogin(ctx context.Context, request PostAuthLoginRequestObject) (PostAuthLoginResponseObject, error)
+	// PostAuthLogout Revoke current refresh session
+	// (POST /v1/auth/logout)
+	PostAuthLogout(ctx context.Context, request PostAuthLogoutRequestObject) (PostAuthLogoutResponseObject, error)
+	// PostAuthPasswordChange Change own password
+	// (POST /v1/auth/password/change)
+	PostAuthPasswordChange(ctx context.Context, request PostAuthPasswordChangeRequestObject) (PostAuthPasswordChangeResponseObject, error)
+	// PostAuthPasswordForgot Request password reset
+	// (POST /v1/auth/password/forgot)
+	PostAuthPasswordForgot(ctx context.Context, request PostAuthPasswordForgotRequestObject) (PostAuthPasswordForgotResponseObject, error)
+	// PostAuthPasswordReset Reset password with token
+	// (POST /v1/auth/password/reset)
+	PostAuthPasswordReset(ctx context.Context, request PostAuthPasswordResetRequestObject) (PostAuthPasswordResetResponseObject, error)
+	// PostAuthRefresh Rotate refresh session
+	// (POST /v1/auth/refresh)
+	PostAuthRefresh(ctx context.Context, request PostAuthRefreshRequestObject) (PostAuthRefreshResponseObject, error)
+	// PostAuthVerifyEmail Request email verification
+	// (POST /v1/auth/verify-email)
+	PostAuthVerifyEmail(ctx context.Context, request PostAuthVerifyEmailRequestObject) (PostAuthVerifyEmailResponseObject, error)
+	// PostAuthVerifyPhone Request phone verification
+	// (POST /v1/auth/verify-phone)
+	PostAuthVerifyPhone(ctx context.Context, request PostAuthVerifyPhoneRequestObject) (PostAuthVerifyPhoneResponseObject, error)
+	// PostAuthVerifyConfirm Confirm email or phone token
+	// (POST /v1/auth/verify/confirm)
+	PostAuthVerifyConfirm(ctx context.Context, request PostAuthVerifyConfirmRequestObject) (PostAuthVerifyConfirmResponseObject, error)
+	// ListBranches List branches
+	// (GET /v1/branches)
+	ListBranches(ctx context.Context, request ListBranchesRequestObject) (ListBranchesResponseObject, error)
+	// CreateBranch Create branch
+	// (POST /v1/branches)
+	CreateBranch(ctx context.Context, request CreateBranchRequestObject) (CreateBranchResponseObject, error)
+	// GetBranch Get branch
+	// (GET /v1/branches/{branchId})
+	GetBranch(ctx context.Context, request GetBranchRequestObject) (GetBranchResponseObject, error)
+	// PatchBranch Update branch
+	// (PATCH /v1/branches/{branchId})
+	PatchBranch(ctx context.Context, request PatchBranchRequestObject) (PatchBranchResponseObject, error)
+	// ArchiveBranch Archive branch
+	// (POST /v1/branches/{branchId}/archive)
+	ArchiveBranch(ctx context.Context, request ArchiveBranchRequestObject) (ArchiveBranchResponseObject, error)
+	// GetBranchHours Get business hours
+	// (GET /v1/branches/{branchId}/hours)
+	GetBranchHours(ctx context.Context, request GetBranchHoursRequestObject) (GetBranchHoursResponseObject, error)
+	// PutBranchHours Replace business hours
+	// (PUT /v1/branches/{branchId}/hours)
+	PutBranchHours(ctx context.Context, request PutBranchHoursRequestObject) (PutBranchHoursResponseObject, error)
 	// PostEcho Bootstrap validation probe
 	// (POST /v1/echo)
 	PostEcho(ctx context.Context, request PostEchoRequestObject) (PostEchoResponseObject, error)
+	// GetGym Get gym settings
+	// (GET /v1/gym)
+	GetGym(ctx context.Context, request GetGymRequestObject) (GetGymResponseObject, error)
+	// PatchGym Update gym settings
+	// (PATCH /v1/gym)
+	PatchGym(ctx context.Context, request PatchGymRequestObject) (PatchGymResponseObject, error)
+	// GetGymBranding Get public branding
+	// (GET /v1/gym/branding)
+	GetGymBranding(ctx context.Context, request GetGymBrandingRequestObject) (GetGymBrandingResponseObject, error)
+	// PatchGymBranding Update public branding
+	// (PATCH /v1/gym/branding)
+	PatchGymBranding(ctx context.Context, request PatchGymBrandingRequestObject) (PatchGymBrandingResponseObject, error)
+	// ListHolidays List gym holidays
+	// (GET /v1/gym/holidays)
+	ListHolidays(ctx context.Context, request ListHolidaysRequestObject) (ListHolidaysResponseObject, error)
+	// CreateHoliday Create gym holiday
+	// (POST /v1/gym/holidays)
+	CreateHoliday(ctx context.Context, request CreateHolidayRequestObject) (CreateHolidayResponseObject, error)
+	// DeleteHoliday Delete gym holiday
+	// (DELETE /v1/gym/holidays/{holidayId})
+	DeleteHoliday(ctx context.Context, request DeleteHolidayRequestObject) (DeleteHolidayResponseObject, error)
+	// ListLeads List leads
+	// (GET /v1/leads)
+	ListLeads(ctx context.Context, request ListLeadsRequestObject) (ListLeadsResponseObject, error)
+	// CreateLead Public lead capture
+	// (POST /v1/leads)
+	CreateLead(ctx context.Context, request CreateLeadRequestObject) (CreateLeadResponseObject, error)
+	// GetLead Get lead
+	// (GET /v1/leads/{leadId})
+	GetLead(ctx context.Context, request GetLeadRequestObject) (GetLeadResponseObject, error)
+	// PatchLead Update lead status
+	// (PATCH /v1/leads/{leadId})
+	PatchLead(ctx context.Context, request PatchLeadRequestObject) (PatchLeadResponseObject, error)
+	// ConvertLead Convert lead to member
+	// (POST /v1/leads/{leadId}/convert)
+	ConvertLead(ctx context.Context, request ConvertLeadRequestObject) (ConvertLeadResponseObject, error)
+	// CreateLeadNote Add lead follow-up note
+	// (POST /v1/leads/{leadId}/notes)
+	CreateLeadNote(ctx context.Context, request CreateLeadNoteRequestObject) (CreateLeadNoteResponseObject, error)
+	// GetMe Current user profile
+	// (GET /v1/me)
+	GetMe(ctx context.Context, request GetMeRequestObject) (GetMeResponseObject, error)
+	// PatchMe Update current user profile
+	// (PATCH /v1/me)
+	PatchMe(ctx context.Context, request PatchMeRequestObject) (PatchMeResponseObject, error)
+	// ListMySessions List own refresh sessions
+	// (GET /v1/me/sessions)
+	ListMySessions(ctx context.Context, request ListMySessionsRequestObject) (ListMySessionsResponseObject, error)
+	// RevokeMySession Revoke one of own sessions
+	// (DELETE /v1/me/sessions/{sessionId})
+	RevokeMySession(ctx context.Context, request RevokeMySessionRequestObject) (RevokeMySessionResponseObject, error)
+	// ListMembers Search members
+	// (GET /v1/members)
+	ListMembers(ctx context.Context, request ListMembersRequestObject) (ListMembersResponseObject, error)
+	// CreateMember Create member
+	// (POST /v1/members)
+	CreateMember(ctx context.Context, request CreateMemberRequestObject) (CreateMemberResponseObject, error)
+	// ExportMembers Export members CSV
+	// (GET /v1/members/export)
+	ExportMembers(ctx context.Context, request ExportMembersRequestObject) (ExportMembersResponseObject, error)
+	// ImportMembers Import members CSV
+	// (POST /v1/members/import)
+	ImportMembers(ctx context.Context, request ImportMembersRequestObject) (ImportMembersResponseObject, error)
+	// GetMember Get member
+	// (GET /v1/members/{memberId})
+	GetMember(ctx context.Context, request GetMemberRequestObject) (GetMemberResponseObject, error)
+	// PatchMember Update member
+	// (PATCH /v1/members/{memberId})
+	PatchMember(ctx context.Context, request PatchMemberRequestObject) (PatchMemberResponseObject, error)
+	// ArchiveMember Archive member
+	// (POST /v1/members/{memberId}/archive)
+	ArchiveMember(ctx context.Context, request ArchiveMemberRequestObject) (ArchiveMemberResponseObject, error)
+	// ListMemberMemberships List a member's memberships
+	// (GET /v1/members/{memberId}/memberships)
+	ListMemberMemberships(ctx context.Context, request ListMemberMembershipsRequestObject) (ListMemberMembershipsResponseObject, error)
+	// AssignMembership Assign a plan
+	// (POST /v1/members/{memberId}/memberships)
+	AssignMembership(ctx context.Context, request AssignMembershipRequestObject) (AssignMembershipResponseObject, error)
+	// ListMemberNotes List member notes
+	// (GET /v1/members/{memberId}/notes)
+	ListMemberNotes(ctx context.Context, request ListMemberNotesRequestObject) (ListMemberNotesResponseObject, error)
+	// CreateMemberNote Add member note
+	// (POST /v1/members/{memberId}/notes)
+	CreateMemberNote(ctx context.Context, request CreateMemberNoteRequestObject) (CreateMemberNoteResponseObject, error)
+	// RestoreMember Restore archived member
+	// (POST /v1/members/{memberId}/restore)
+	RestoreMember(ctx context.Context, request RestoreMemberRequestObject) (RestoreMemberResponseObject, error)
+	// ListExpiringMemberships List expiring memberships
+	// (GET /v1/memberships/expiring)
+	ListExpiringMemberships(ctx context.Context, request ListExpiringMembershipsRequestObject) (ListExpiringMembershipsResponseObject, error)
+	// CancelMembership Cancel membership
+	// (POST /v1/memberships/{membershipId}/cancel)
+	CancelMembership(ctx context.Context, request CancelMembershipRequestObject) (CancelMembershipResponseObject, error)
+	// FreezeMembership Freeze membership
+	// (POST /v1/memberships/{membershipId}/freeze)
+	FreezeMembership(ctx context.Context, request FreezeMembershipRequestObject) (FreezeMembershipResponseObject, error)
+	// RenewMembership Renew membership
+	// (POST /v1/memberships/{membershipId}/renew)
+	RenewMembership(ctx context.Context, request RenewMembershipRequestObject) (RenewMembershipResponseObject, error)
+	// ResumeMembership Resume frozen membership
+	// (POST /v1/memberships/{membershipId}/resume)
+	ResumeMembership(ctx context.Context, request ResumeMembershipRequestObject) (ResumeMembershipResponseObject, error)
+	// UpgradeMembership Change plan
+	// (POST /v1/memberships/{membershipId}/upgrade)
+	UpgradeMembership(ctx context.Context, request UpgradeMembershipRequestObject) (UpgradeMembershipResponseObject, error)
+	// ListPlans List membership plans
+	// (GET /v1/plans)
+	ListPlans(ctx context.Context, request ListPlansRequestObject) (ListPlansResponseObject, error)
+	// CreatePlan Create membership plan
+	// (POST /v1/plans)
+	CreatePlan(ctx context.Context, request CreatePlanRequestObject) (CreatePlanResponseObject, error)
+	// GetPlan Get membership plan
+	// (GET /v1/plans/{planId})
+	GetPlan(ctx context.Context, request GetPlanRequestObject) (GetPlanResponseObject, error)
+	// PatchPlan Update membership plan
+	// (PATCH /v1/plans/{planId})
+	PatchPlan(ctx context.Context, request PatchPlanRequestObject) (PatchPlanResponseObject, error)
+	// ListStaff List staff accounts
+	// (GET /v1/staff)
+	ListStaff(ctx context.Context, request ListStaffRequestObject) (ListStaffResponseObject, error)
+	// GetStaff Get staff account
+	// (GET /v1/staff/{staffId})
+	GetStaff(ctx context.Context, request GetStaffRequestObject) (GetStaffResponseObject, error)
+	// PatchStaff Update staff account
+	// (PATCH /v1/staff/{staffId})
+	PatchStaff(ctx context.Context, request PatchStaffRequestObject) (PatchStaffResponseObject, error)
+	// PostStaffDeactivate Deactivate staff
+	// (POST /v1/staff/{staffId}/deactivate)
+	PostStaffDeactivate(ctx context.Context, request PostStaffDeactivateRequestObject) (PostStaffDeactivateResponseObject, error)
+	// PostStaffReactivate Reactivate staff
+	// (POST /v1/staff/{staffId}/reactivate)
+	PostStaffReactivate(ctx context.Context, request PostStaffReactivateRequestObject) (PostStaffReactivateResponseObject, error)
+	// PostStaffRevokeSessions Revoke all sessions for a user
+	// (POST /v1/staff/{staffId}/revoke-sessions)
+	PostStaffRevokeSessions(ctx context.Context, request PostStaffRevokeSessionsRequestObject) (PostStaffRevokeSessionsResponseObject, error)
+	// PutStaffRoles Replace staff roles
+	// (PUT /v1/staff/{staffId}/roles)
+	PutStaffRoles(ctx context.Context, request PutStaffRolesRequestObject) (PutStaffRolesResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, request any) (any, error)
@@ -578,6 +9509,589 @@ func (sh *strictHandler) GetReady(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ListAuditEvents operation middleware
+func (sh *strictHandler) ListAuditEvents(w http.ResponseWriter, r *http.Request, params ListAuditEventsParams) {
+	var request ListAuditEventsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAuditEvents(ctx, request.(ListAuditEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAuditEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAuditEventsResponseObject); ok {
+		if err := validResponse.VisitListAuditEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthBootstrapOwner operation middleware
+func (sh *strictHandler) PostAuthBootstrapOwner(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthBootstrapOwnerRequestObject
+
+	var body PostAuthBootstrapOwnerJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthBootstrapOwner(ctx, request.(PostAuthBootstrapOwnerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthBootstrapOwner")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthBootstrapOwnerResponseObject); ok {
+		if err := validResponse.VisitPostAuthBootstrapOwnerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthInvite operation middleware
+func (sh *strictHandler) PostAuthInvite(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthInviteRequestObject
+
+	var body PostAuthInviteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthInvite(ctx, request.(PostAuthInviteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthInvite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthInviteResponseObject); ok {
+		if err := validResponse.VisitPostAuthInviteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthInviteAccept operation middleware
+func (sh *strictHandler) PostAuthInviteAccept(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthInviteAcceptRequestObject
+
+	var body PostAuthInviteAcceptJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthInviteAccept(ctx, request.(PostAuthInviteAcceptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthInviteAccept")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthInviteAcceptResponseObject); ok {
+		if err := validResponse.VisitPostAuthInviteAcceptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthLogin operation middleware
+func (sh *strictHandler) PostAuthLogin(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthLoginRequestObject
+
+	var body PostAuthLoginJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthLogin(ctx, request.(PostAuthLoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthLogin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthLoginResponseObject); ok {
+		if err := validResponse.VisitPostAuthLoginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthLogout operation middleware
+func (sh *strictHandler) PostAuthLogout(w http.ResponseWriter, r *http.Request, params PostAuthLogoutParams) {
+	var request PostAuthLogoutRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthLogout(ctx, request.(PostAuthLogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthLogout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthLogoutResponseObject); ok {
+		if err := validResponse.VisitPostAuthLogoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthPasswordChange operation middleware
+func (sh *strictHandler) PostAuthPasswordChange(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthPasswordChangeRequestObject
+
+	var body PostAuthPasswordChangeJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthPasswordChange(ctx, request.(PostAuthPasswordChangeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthPasswordChange")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthPasswordChangeResponseObject); ok {
+		if err := validResponse.VisitPostAuthPasswordChangeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthPasswordForgot operation middleware
+func (sh *strictHandler) PostAuthPasswordForgot(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthPasswordForgotRequestObject
+
+	var body PostAuthPasswordForgotJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthPasswordForgot(ctx, request.(PostAuthPasswordForgotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthPasswordForgot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthPasswordForgotResponseObject); ok {
+		if err := validResponse.VisitPostAuthPasswordForgotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthPasswordReset operation middleware
+func (sh *strictHandler) PostAuthPasswordReset(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthPasswordResetRequestObject
+
+	var body PostAuthPasswordResetJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthPasswordReset(ctx, request.(PostAuthPasswordResetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthPasswordReset")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthPasswordResetResponseObject); ok {
+		if err := validResponse.VisitPostAuthPasswordResetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthRefresh operation middleware
+func (sh *strictHandler) PostAuthRefresh(w http.ResponseWriter, r *http.Request, params PostAuthRefreshParams) {
+	var request PostAuthRefreshRequestObject
+
+	request.Params = params
+
+	var body PostAuthRefreshJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthRefresh(ctx, request.(PostAuthRefreshRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthRefresh")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthRefreshResponseObject); ok {
+		if err := validResponse.VisitPostAuthRefreshResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthVerifyEmail operation middleware
+func (sh *strictHandler) PostAuthVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthVerifyEmailRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthVerifyEmail(ctx, request.(PostAuthVerifyEmailRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthVerifyEmail")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthVerifyEmailResponseObject); ok {
+		if err := validResponse.VisitPostAuthVerifyEmailResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthVerifyPhone operation middleware
+func (sh *strictHandler) PostAuthVerifyPhone(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthVerifyPhoneRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthVerifyPhone(ctx, request.(PostAuthVerifyPhoneRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthVerifyPhone")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthVerifyPhoneResponseObject); ok {
+		if err := validResponse.VisitPostAuthVerifyPhoneResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthVerifyConfirm operation middleware
+func (sh *strictHandler) PostAuthVerifyConfirm(w http.ResponseWriter, r *http.Request) {
+	var request PostAuthVerifyConfirmRequestObject
+
+	var body PostAuthVerifyConfirmJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthVerifyConfirm(ctx, request.(PostAuthVerifyConfirmRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthVerifyConfirm")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostAuthVerifyConfirmResponseObject); ok {
+		if err := validResponse.VisitPostAuthVerifyConfirmResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListBranches operation middleware
+func (sh *strictHandler) ListBranches(w http.ResponseWriter, r *http.Request) {
+	var request ListBranchesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListBranches(ctx, request.(ListBranchesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListBranches")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListBranchesResponseObject); ok {
+		if err := validResponse.VisitListBranchesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateBranch operation middleware
+func (sh *strictHandler) CreateBranch(w http.ResponseWriter, r *http.Request) {
+	var request CreateBranchRequestObject
+
+	var body CreateBranchJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateBranch(ctx, request.(CreateBranchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateBranch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateBranchResponseObject); ok {
+		if err := validResponse.VisitCreateBranchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBranch operation middleware
+func (sh *strictHandler) GetBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	var request GetBranchRequestObject
+
+	request.BranchId = branchId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBranch(ctx, request.(GetBranchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBranch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBranchResponseObject); ok {
+		if err := validResponse.VisitGetBranchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchBranch operation middleware
+func (sh *strictHandler) PatchBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	var request PatchBranchRequestObject
+
+	request.BranchId = branchId
+
+	var body PatchBranchJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchBranch(ctx, request.(PatchBranchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchBranch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchBranchResponseObject); ok {
+		if err := validResponse.VisitPatchBranchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ArchiveBranch operation middleware
+func (sh *strictHandler) ArchiveBranch(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	var request ArchiveBranchRequestObject
+
+	request.BranchId = branchId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ArchiveBranch(ctx, request.(ArchiveBranchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ArchiveBranch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ArchiveBranchResponseObject); ok {
+		if err := validResponse.VisitArchiveBranchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBranchHours operation middleware
+func (sh *strictHandler) GetBranchHours(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	var request GetBranchHoursRequestObject
+
+	request.BranchId = branchId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBranchHours(ctx, request.(GetBranchHoursRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBranchHours")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBranchHoursResponseObject); ok {
+		if err := validResponse.VisitGetBranchHoursResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutBranchHours operation middleware
+func (sh *strictHandler) PutBranchHours(w http.ResponseWriter, r *http.Request, branchId openapi_types.UUID) {
+	var request PutBranchHoursRequestObject
+
+	request.BranchId = branchId
+
+	var body PutBranchHoursJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutBranchHours(ctx, request.(PutBranchHoursRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutBranchHours")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutBranchHoursResponseObject); ok {
+		if err := validResponse.VisitPutBranchHoursResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PostEcho operation middleware
 func (sh *strictHandler) PostEcho(w http.ResponseWriter, r *http.Request) {
 	var request PostEchoRequestObject
@@ -609,46 +10123,1438 @@ func (sh *strictHandler) PostEcho(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetGym operation middleware
+func (sh *strictHandler) GetGym(w http.ResponseWriter, r *http.Request) {
+	var request GetGymRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetGym(ctx, request.(GetGymRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetGym")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetGymResponseObject); ok {
+		if err := validResponse.VisitGetGymResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchGym operation middleware
+func (sh *strictHandler) PatchGym(w http.ResponseWriter, r *http.Request) {
+	var request PatchGymRequestObject
+
+	var body PatchGymJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchGym(ctx, request.(PatchGymRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchGym")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchGymResponseObject); ok {
+		if err := validResponse.VisitPatchGymResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetGymBranding operation middleware
+func (sh *strictHandler) GetGymBranding(w http.ResponseWriter, r *http.Request) {
+	var request GetGymBrandingRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetGymBranding(ctx, request.(GetGymBrandingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetGymBranding")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetGymBrandingResponseObject); ok {
+		if err := validResponse.VisitGetGymBrandingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchGymBranding operation middleware
+func (sh *strictHandler) PatchGymBranding(w http.ResponseWriter, r *http.Request) {
+	var request PatchGymBrandingRequestObject
+
+	var body PatchGymBrandingJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchGymBranding(ctx, request.(PatchGymBrandingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchGymBranding")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchGymBrandingResponseObject); ok {
+		if err := validResponse.VisitPatchGymBrandingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListHolidays operation middleware
+func (sh *strictHandler) ListHolidays(w http.ResponseWriter, r *http.Request) {
+	var request ListHolidaysRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListHolidays(ctx, request.(ListHolidaysRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListHolidays")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListHolidaysResponseObject); ok {
+		if err := validResponse.VisitListHolidaysResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateHoliday operation middleware
+func (sh *strictHandler) CreateHoliday(w http.ResponseWriter, r *http.Request) {
+	var request CreateHolidayRequestObject
+
+	var body CreateHolidayJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateHoliday(ctx, request.(CreateHolidayRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateHoliday")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateHolidayResponseObject); ok {
+		if err := validResponse.VisitCreateHolidayResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteHoliday operation middleware
+func (sh *strictHandler) DeleteHoliday(w http.ResponseWriter, r *http.Request, holidayId openapi_types.UUID) {
+	var request DeleteHolidayRequestObject
+
+	request.HolidayId = holidayId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteHoliday(ctx, request.(DeleteHolidayRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteHoliday")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteHolidayResponseObject); ok {
+		if err := validResponse.VisitDeleteHolidayResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListLeads operation middleware
+func (sh *strictHandler) ListLeads(w http.ResponseWriter, r *http.Request, params ListLeadsParams) {
+	var request ListLeadsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListLeads(ctx, request.(ListLeadsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListLeads")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListLeadsResponseObject); ok {
+		if err := validResponse.VisitListLeadsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateLead operation middleware
+func (sh *strictHandler) CreateLead(w http.ResponseWriter, r *http.Request) {
+	var request CreateLeadRequestObject
+
+	var body CreateLeadJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateLead(ctx, request.(CreateLeadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateLead")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateLeadResponseObject); ok {
+		if err := validResponse.VisitCreateLeadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetLead operation middleware
+func (sh *strictHandler) GetLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID) {
+	var request GetLeadRequestObject
+
+	request.LeadId = leadId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetLead(ctx, request.(GetLeadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetLead")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetLeadResponseObject); ok {
+		if err := validResponse.VisitGetLeadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchLead operation middleware
+func (sh *strictHandler) PatchLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID) {
+	var request PatchLeadRequestObject
+
+	request.LeadId = leadId
+
+	var body PatchLeadJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchLead(ctx, request.(PatchLeadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchLead")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchLeadResponseObject); ok {
+		if err := validResponse.VisitPatchLeadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConvertLead operation middleware
+func (sh *strictHandler) ConvertLead(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID) {
+	var request ConvertLeadRequestObject
+
+	request.LeadId = leadId
+
+	var body ConvertLeadJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConvertLead(ctx, request.(ConvertLeadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConvertLead")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConvertLeadResponseObject); ok {
+		if err := validResponse.VisitConvertLeadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateLeadNote operation middleware
+func (sh *strictHandler) CreateLeadNote(w http.ResponseWriter, r *http.Request, leadId openapi_types.UUID) {
+	var request CreateLeadNoteRequestObject
+
+	request.LeadId = leadId
+
+	var body CreateLeadNoteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateLeadNote(ctx, request.(CreateLeadNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateLeadNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateLeadNoteResponseObject); ok {
+		if err := validResponse.VisitCreateLeadNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMe operation middleware
+func (sh *strictHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	var request GetMeRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMe(ctx, request.(GetMeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMe")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMeResponseObject); ok {
+		if err := validResponse.VisitGetMeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchMe operation middleware
+func (sh *strictHandler) PatchMe(w http.ResponseWriter, r *http.Request) {
+	var request PatchMeRequestObject
+
+	var body PatchMeJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchMe(ctx, request.(PatchMeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchMe")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchMeResponseObject); ok {
+		if err := validResponse.VisitPatchMeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMySessions operation middleware
+func (sh *strictHandler) ListMySessions(w http.ResponseWriter, r *http.Request) {
+	var request ListMySessionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMySessions(ctx, request.(ListMySessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMySessions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMySessionsResponseObject); ok {
+		if err := validResponse.VisitListMySessionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokeMySession operation middleware
+func (sh *strictHandler) RevokeMySession(w http.ResponseWriter, r *http.Request, sessionId openapi_types.UUID) {
+	var request RevokeMySessionRequestObject
+
+	request.SessionId = sessionId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeMySession(ctx, request.(RevokeMySessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeMySession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokeMySessionResponseObject); ok {
+		if err := validResponse.VisitRevokeMySessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMembers operation middleware
+func (sh *strictHandler) ListMembers(w http.ResponseWriter, r *http.Request, params ListMembersParams) {
+	var request ListMembersRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMembers(ctx, request.(ListMembersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMembers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMembersResponseObject); ok {
+		if err := validResponse.VisitListMembersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateMember operation middleware
+func (sh *strictHandler) CreateMember(w http.ResponseWriter, r *http.Request) {
+	var request CreateMemberRequestObject
+
+	var body CreateMemberJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMember(ctx, request.(CreateMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateMemberResponseObject); ok {
+		if err := validResponse.VisitCreateMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ExportMembers operation middleware
+func (sh *strictHandler) ExportMembers(w http.ResponseWriter, r *http.Request) {
+	var request ExportMembersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ExportMembers(ctx, request.(ExportMembersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ExportMembers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ExportMembersResponseObject); ok {
+		if err := validResponse.VisitExportMembersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ImportMembers operation middleware
+func (sh *strictHandler) ImportMembers(w http.ResponseWriter, r *http.Request, params ImportMembersParams) {
+	var request ImportMembersRequestObject
+
+	request.Params = params
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ImportMembers(ctx, request.(ImportMembersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ImportMembers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ImportMembersResponseObject); ok {
+		if err := validResponse.VisitImportMembersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMember operation middleware
+func (sh *strictHandler) GetMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	var request GetMemberRequestObject
+
+	request.MemberId = memberId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMember(ctx, request.(GetMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMemberResponseObject); ok {
+		if err := validResponse.VisitGetMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchMember operation middleware
+func (sh *strictHandler) PatchMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	var request PatchMemberRequestObject
+
+	request.MemberId = memberId
+
+	var body PatchMemberJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchMember(ctx, request.(PatchMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchMemberResponseObject); ok {
+		if err := validResponse.VisitPatchMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ArchiveMember operation middleware
+func (sh *strictHandler) ArchiveMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	var request ArchiveMemberRequestObject
+
+	request.MemberId = memberId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ArchiveMember(ctx, request.(ArchiveMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ArchiveMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ArchiveMemberResponseObject); ok {
+		if err := validResponse.VisitArchiveMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMemberMemberships operation middleware
+func (sh *strictHandler) ListMemberMemberships(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	var request ListMemberMembershipsRequestObject
+
+	request.MemberId = memberId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMemberMemberships(ctx, request.(ListMemberMembershipsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMemberMemberships")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMemberMembershipsResponseObject); ok {
+		if err := validResponse.VisitListMemberMembershipsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AssignMembership operation middleware
+func (sh *strictHandler) AssignMembership(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	var request AssignMembershipRequestObject
+
+	request.MemberId = memberId
+
+	var body AssignMembershipJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AssignMembership(ctx, request.(AssignMembershipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AssignMembership")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AssignMembershipResponseObject); ok {
+		if err := validResponse.VisitAssignMembershipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListMemberNotes operation middleware
+func (sh *strictHandler) ListMemberNotes(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID, params ListMemberNotesParams) {
+	var request ListMemberNotesRequestObject
+
+	request.MemberId = memberId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMemberNotes(ctx, request.(ListMemberNotesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMemberNotes")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMemberNotesResponseObject); ok {
+		if err := validResponse.VisitListMemberNotesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateMemberNote operation middleware
+func (sh *strictHandler) CreateMemberNote(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	var request CreateMemberNoteRequestObject
+
+	request.MemberId = memberId
+
+	var body CreateMemberNoteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMemberNote(ctx, request.(CreateMemberNoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMemberNote")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateMemberNoteResponseObject); ok {
+		if err := validResponse.VisitCreateMemberNoteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RestoreMember operation middleware
+func (sh *strictHandler) RestoreMember(w http.ResponseWriter, r *http.Request, memberId openapi_types.UUID) {
+	var request RestoreMemberRequestObject
+
+	request.MemberId = memberId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RestoreMember(ctx, request.(RestoreMemberRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RestoreMember")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RestoreMemberResponseObject); ok {
+		if err := validResponse.VisitRestoreMemberResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListExpiringMemberships operation middleware
+func (sh *strictHandler) ListExpiringMemberships(w http.ResponseWriter, r *http.Request, params ListExpiringMembershipsParams) {
+	var request ListExpiringMembershipsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListExpiringMemberships(ctx, request.(ListExpiringMembershipsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListExpiringMemberships")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListExpiringMembershipsResponseObject); ok {
+		if err := validResponse.VisitListExpiringMembershipsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CancelMembership operation middleware
+func (sh *strictHandler) CancelMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	var request CancelMembershipRequestObject
+
+	request.MembershipId = membershipId
+
+	var body CancelMembershipJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CancelMembership(ctx, request.(CancelMembershipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CancelMembership")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CancelMembershipResponseObject); ok {
+		if err := validResponse.VisitCancelMembershipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// FreezeMembership operation middleware
+func (sh *strictHandler) FreezeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	var request FreezeMembershipRequestObject
+
+	request.MembershipId = membershipId
+
+	var body FreezeMembershipJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.FreezeMembership(ctx, request.(FreezeMembershipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "FreezeMembership")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(FreezeMembershipResponseObject); ok {
+		if err := validResponse.VisitFreezeMembershipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RenewMembership operation middleware
+func (sh *strictHandler) RenewMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	var request RenewMembershipRequestObject
+
+	request.MembershipId = membershipId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RenewMembership(ctx, request.(RenewMembershipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RenewMembership")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RenewMembershipResponseObject); ok {
+		if err := validResponse.VisitRenewMembershipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResumeMembership operation middleware
+func (sh *strictHandler) ResumeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	var request ResumeMembershipRequestObject
+
+	request.MembershipId = membershipId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResumeMembership(ctx, request.(ResumeMembershipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResumeMembership")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResumeMembershipResponseObject); ok {
+		if err := validResponse.VisitResumeMembershipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpgradeMembership operation middleware
+func (sh *strictHandler) UpgradeMembership(w http.ResponseWriter, r *http.Request, membershipId openapi_types.UUID) {
+	var request UpgradeMembershipRequestObject
+
+	request.MembershipId = membershipId
+
+	var body UpgradeMembershipJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpgradeMembership(ctx, request.(UpgradeMembershipRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpgradeMembership")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpgradeMembershipResponseObject); ok {
+		if err := validResponse.VisitUpgradeMembershipResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPlans operation middleware
+func (sh *strictHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
+	var request ListPlansRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPlans(ctx, request.(ListPlansRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPlans")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPlansResponseObject); ok {
+		if err := validResponse.VisitListPlansResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePlan operation middleware
+func (sh *strictHandler) CreatePlan(w http.ResponseWriter, r *http.Request) {
+	var request CreatePlanRequestObject
+
+	var body CreatePlanJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePlan(ctx, request.(CreatePlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePlanResponseObject); ok {
+		if err := validResponse.VisitCreatePlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPlan operation middleware
+func (sh *strictHandler) GetPlan(w http.ResponseWriter, r *http.Request, planId openapi_types.UUID) {
+	var request GetPlanRequestObject
+
+	request.PlanId = planId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPlan(ctx, request.(GetPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPlanResponseObject); ok {
+		if err := validResponse.VisitGetPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchPlan operation middleware
+func (sh *strictHandler) PatchPlan(w http.ResponseWriter, r *http.Request, planId openapi_types.UUID) {
+	var request PatchPlanRequestObject
+
+	request.PlanId = planId
+
+	var body PatchPlanJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchPlan(ctx, request.(PatchPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchPlanResponseObject); ok {
+		if err := validResponse.VisitPatchPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListStaff operation middleware
+func (sh *strictHandler) ListStaff(w http.ResponseWriter, r *http.Request, params ListStaffParams) {
+	var request ListStaffRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListStaff(ctx, request.(ListStaffRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListStaff")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListStaffResponseObject); ok {
+		if err := validResponse.VisitListStaffResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetStaff operation middleware
+func (sh *strictHandler) GetStaff(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	var request GetStaffRequestObject
+
+	request.StaffId = staffId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetStaff(ctx, request.(GetStaffRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetStaff")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetStaffResponseObject); ok {
+		if err := validResponse.VisitGetStaffResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchStaff operation middleware
+func (sh *strictHandler) PatchStaff(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	var request PatchStaffRequestObject
+
+	request.StaffId = staffId
+
+	var body PatchStaffJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchStaff(ctx, request.(PatchStaffRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchStaff")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PatchStaffResponseObject); ok {
+		if err := validResponse.VisitPatchStaffResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostStaffDeactivate operation middleware
+func (sh *strictHandler) PostStaffDeactivate(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	var request PostStaffDeactivateRequestObject
+
+	request.StaffId = staffId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostStaffDeactivate(ctx, request.(PostStaffDeactivateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostStaffDeactivate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostStaffDeactivateResponseObject); ok {
+		if err := validResponse.VisitPostStaffDeactivateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostStaffReactivate operation middleware
+func (sh *strictHandler) PostStaffReactivate(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	var request PostStaffReactivateRequestObject
+
+	request.StaffId = staffId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostStaffReactivate(ctx, request.(PostStaffReactivateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostStaffReactivate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostStaffReactivateResponseObject); ok {
+		if err := validResponse.VisitPostStaffReactivateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostStaffRevokeSessions operation middleware
+func (sh *strictHandler) PostStaffRevokeSessions(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	var request PostStaffRevokeSessionsRequestObject
+
+	request.StaffId = staffId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostStaffRevokeSessions(ctx, request.(PostStaffRevokeSessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostStaffRevokeSessions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostStaffRevokeSessionsResponseObject); ok {
+		if err := validResponse.VisitPostStaffRevokeSessionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutStaffRoles operation middleware
+func (sh *strictHandler) PutStaffRoles(w http.ResponseWriter, r *http.Request, staffId openapi_types.UUID) {
+	var request PutStaffRolesRequestObject
+
+	request.StaffId = staffId
+
+	var body PutStaffRolesJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutStaffRoles(ctx, request.(PutStaffRolesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutStaffRoles")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutStaffRolesResponseObject); ok {
+		if err := validResponse.VisitPutStaffRolesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, compressed with deflate, json marshaled OpenAPI spec.
 // Stored as a slice of fixed-width chunks rather than one concatenated
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"xFlfk9u2Ef8qGLYP6YwkXOLmRTN9uNRu7DZtND4nffDdeCBgRSJHAggW5Fnh6Lt3FiQlUsTJl+Y8fhK4",
-	"+8Ni/wC7C6jNpK2cNWACZus284DOGoT48cp762kgrQlgAg2Fc6WWImhr+C9oDdFQFlAJGv3Zwy5bZ3/i",
-	"J6m84yKP0l6ZBkrrIDscDotMAUqvHQnL1tlNEEYJrxgQksEJuuiX6LSShX0Lv9aAnUJKaRIgyo23DnzQ",
-	"pPxOlAiLzI1IbVYBosiBhmHvIFtnGLw2eVzBw6+19qCy9fsj8G4xAO32F5AhOyz65TsvfZH1J278fQrA",
-	"ENDfMUdaldKYgheELvFxccHXM2k7DaWKIx2gwufSJYpNcp7s807EoltjcTEEPUF4L/ZRzgzx+KrdooDh",
-	"g1afVupMmcnkuWZnk7topwx4DaIMxf+5izGIUHfbydQVLWTvR6s8Ykk/K6XNWxBq/5zKLDJjwwdPYv+A",
-	"YpR1QNZeh/0NZZ9uwS0ID/66DsXp6x/WVyJk6+yf/32X9bmKJHXc7Ci5CMGRwdLaew2DjGkSJMyPptyz",
-	"G1obmIedByxYsPdgWDeTIQRmDQsFsOvNG1ZYDNki0zS/Q5ALRNShn/8hzj+pIpz+F+y7LKzNzs4Vef3u",
-	"3YZR4vdCBrazPi73/b7a1CUC+94yBN+AX92ajQgFMuEhQpy3qpaBSRFEafMVey2MKsF3CF25EiowARRz",
-	"4NmPDsyNA8lkIUwOq1vzSsiCUYxjkWEaWSX8PSi2KQQC+/fPG2Y9+0EE8CtmhdNLOiU5eaf2Hkwo9ywH",
-	"Q/MBb4018Tt0e35Bw7jhFkwYxZzFQBmd1SboMupvH4w2ea8PLR9LHqjVbfSfDiU58OiI682bbJE14LHz",
-	"29XqavUNRdk6MMLpbJ29WH29usoWmSM/kad5EZWhYQ5h7vto6ZpVjVuxv0c91mxrbcDghVv2fmdvu12M",
-	"a+bqbaklUULtDbJvrq6Y3g3RkIBIdvjakGUr9tICMmMDc2QooZQIYisQOhuPzn+jyNLBdzH9jNqDb66u",
-	"nq05OMtIie5gczKkdpPTma3f3y0yrKtK+H22zn7QDRiCOm+3dBSCyJGOeu/1u0X2cZnvK0fxW3ZxptN6",
-	"5uBsAnMUkmydVY2bMvpcgtk668IQdeNd9vmcAX4owEyC14UTaykBFC6YDQX4B43Avr168Uhk41H4nIGd",
-	"JvdEXF8O2tMOBSELsS2Bzs+3Vy++jBZ0MkaaXNhpJFZ/8a3WfM1FrXRYQtO38UdqKPhpLftgwJ9xtWl0",
-	"gCSRCynBhTNeaXOqM+c0W58DnUB8sF7xweo0d2d9bh+d6wHhnNlXtDNqA17v9kuohC7TLFdYA0kWl9bs",
-	"tK9OzK0uS21yLgUWy9rNGbYBr+qRuC3VXZMjb/vRG3UYcb0wsgCcU3jbjZLwEZMLLwvdwGVQYWs/WkQW",
-	"IO+1SVC4A3G/fATOHfndhAQHg9jtEvQ27r2JEbIUiEs6gaoux6afMXg7DBPTqV3BJJG38ePd3k3ngSxi",
-	"N0OV/fkSL/UIgEywvhVfsZ8QFAuWwUfwkpIsdTLUjfUtOmtEqVVMVqtb8xKaJXUiaxYKjQyMclabEKuZ",
-	"8ZBrDOBBdUn9erP58Oo/P/+t76RIAnsLlW2AWSOBCUpP5bAAqJM4+KgxYCrXb/pG53SH+M52Bep5Lvej",
-	"S/lh2mLTNfDwGSvM5EKeSO0xdGoIHFWWv3arp4QeteyeKy5m/++GfTMK9bMWAtVvmuEq/cdqBDFcNTnW",
-	"w97FBIm3w3ByvHZ6cpbjJ2/pZw470vkp0Gk+6tyAWtZ+lLvzfTX5iAlP0RVuQi0s+X6PaSpv+9FEO20a",
-	"q+XYjoHC236UxI+5XGmUth4blYQ5sa+mZTkJ8yBBu08Ja2x8NeghJQiFZ5+8pZ+J9lM6xaIBHx7lGxvG",
-	"nqlgPB4y/rK7T044pZ7aWQFHQLoWpYm87UcTbSuotuBxRuDw0dmx2gNdV2l62w1Swke8eV1NYHIrSryI",
-	"qEBg7aE690ACGEmFdpdxsyjMEPONlQJ5m3vAp4GoRQr2MtYDBusvuyt4oQ345adteLD+3tZh6UphnoSc",
-	"g8iTtDe0n6SGMbc9fcQDIIyE8knQnQf4DZ4E9WDg4YlIrKunCa1d7oUaYY0NetfXSXyEzDF4EKPkOd8p",
-	"A4W3/ajTa1ebUXo5C0r85C39TM6U87ay8Q1mDA7L+dkfEXnrwk3i9LsaC471lgr4dmS3BzrkyIUMuoHl",
-	"LEkc+SGAURTgOU8WtTcJcuwp66BL/ZvoeoZziKfutk6IpLpVu4QebTc4zLKWt7Ya4edOupwdU9yk0Ung",
-	"cEn5BOxB6FBqHGl91vbHT97Gn6l6UwZXEAMmxlfMc4x/Eqax95DYUjOgnbQnfSZKUHjbjyb6p7hcNEKX",
-	"YqvL2ANehM5q4CVUskKlJ9iq0oiTvTkEibfDaCLnkcw6IfO2/9ycn+kh2x4RPXfaDU9fw9/fHag9jn0s",
-	"Rm5s5zKeEb3vh9vhXbrviw+LI4Uu5PF79q/gbseEjL0Wq4QReSyz8fmWwn16K8bTs3e3YefSrmulAytt",
-	"zrrHEvZVfBWJwjrZnlHL/ZeTqPi2MlaUGtO55J8MGQAmUBoG1d8cj1czZF+VXfvKUAdYMGq3mBQu1B5G",
-	"qw1N+2m5IdfNSbGJGJG7fnBE6Ju1Mal/wJigKAHCZOLx3Ixoxwo8olEv0F2q2tMfDjEDjknTonW4O/wv",
-	"AAD//w==",
+	"7F15c9s4lv8qKO5UTXetZLnTPbvVTu0f7sQ5euLYZSe9U5V41RD5JGIMAgwAylar/N23cJAixUOHddCO",
+	"/rJMgsAD8HsHHt4Dpp7Po5gzYEp6J1MvxgJHoECY/34TmPnh+0D/DkD6gsSKcOadeG8IVSDQYIIGpgz6",
+	"/Pn9a6/jEf3yWwJi4nU8hiPwTjxbok8Cr+NJP4QI6/qGXERYeSdekpg3ahLrwlIJwkbew0PHe5UIyUW5",
+	"7YsYf0sAxXhEGNbPkG9KoqHgEcIoFjAmPJG6BPxdIgb3qm+L1FCYvZyRVybnA4mIKlNzju9JlESIKIgk",
+	"UhwJUIlgKAZhCKhpkpra8i0GMMQJVd7Ji+OOF9lavZOfjvV/hLn/snEiTMEIhKHsX28n0WVCJbyiBFgF",
+	"ja+ur96gUYJFgIZcIJ/zWwJdnKgQmCI+VhAg/R8SPFEg0Q84iAhDXCAcxz+mPQgBByBmXfhXN2236xpu",
+	"GsCHjidAxpxJMNg6E8JOrs+ZclTjOKaaHMJZ799Skz7N1fg3AUPvxPuP3gyyPftW9kxtZ2wMlMdgWysO",
+	"wbXCLNADALokgqxox/vE+Tlmkyv4loC0bLAbmq6wAmSAgODeBwhAM4IdZkPGFSgx6Z4OFVSwwTX4nAUG",
+	"cneYKDSAIReg4Scmesj1eH9LiIDAO1EigYrJmYHIUOcIN5zPuZJK4PjijoFwQ2OGIwiIJgDTS8FjEIro",
+	"6RxiKqHjxblHUw8iTGiB1e2TEq93vNEk6ltUTcsvYyzlHRdGCkWEfQA2UqHmjIqKJKgk7it+C6w8Yn9g",
+	"mgDiQ/TbxcWn609Xp5f9Txf/PPuo0YDGWFRKodkgfinU3sl6k9GX68dNVhUf/Bt8pWmz0vSVAKxgvRHF",
+	"QSBAyspRqh++kDOoFmn5vi0g+xIrP2wH1ZUUBoSNHkEj5SPeHxIKWk0t1k76cxJhMen7nFoxVi6RDCjx",
+	"+wqPKFm6K1bnXWq9oTtA6cXQO/nSLGdm3/yGpZZoK/Xc6K3Cj6a2fpecXWTUOvKxEHhSApStr4yom0I3",
+	"DcmrzVVen2ej+iUd1o7HEkq9mxK+c19Vwfx1IoyQ/8yslgemFe4XL8Baa98B3HodL+JMhV7HmwDO1zKb",
+	"9DM/5OshMAIp3bQ3M2pasKoTtnmrZffSfkHlraguUoNghW98HlSLjwAUJlTWV2c1YrG2IQEaFHlhE7SY",
+	"aivfLD3mtoqObaPTOAUlniyVqG/VNgpSOSnYTNQcMYWPy5TNfWxnu6oD2qjcjrLxEyGA+RMDd3yfGhI/",
+	"d/Jmxc8VXL2CJbOyQut4ikTw1/La7h1gqsI1uVwqrBKZl2/8tkKQzds99quq2XrHKQnw5DFWzWx9uIzi",
+	"DbCCQkHzYPmZmOua+7rW+nnHEyHX61eAJ+sLE8ol5HlwwDkFzDRJ2moXY0wfV7nsY2VX/EqB0Obx/339",
+	"GkxfPJzYP3+rGlMeA1vjw7kxz2rp5EhZLMusFtb62PKvXRL/98Llcb7ptIZOOsJVzUb4/r0dVlv57J9G",
+	"g8fMd1V979mYKDj1fYjVelDayNooWxU1z066vMmqXtyltURRIkEsx/QPtQSs2fQK8pyYdpYVToJTWN6Y",
+	"vuIUllPZObN7gUVT+vQD4OAVZ2MQauvL+JBH0F9NnC8npecqvqnr50paCLOJW12V1sGpur7Ri6mKt3YE",
+	"bh5uSqIVx8oPcb+O1zqrDSeDScyrnI6JVGgACKJYTV4ixlnX/EQyGURESsKZRFgAkoQCU3SCAiJ9LKyH",
+	"qWyHYnELirBR39fclLoQnT/SDVdZEeUMyZw59eL4+LhhooslO6sYSrGAIQgBwYoYkzwRPiziRg2ga1uy",
+	"kgf1+8cYplKSEYOgr3h/edHXyVlsC4m3JWuJv86GIbX9qPWb6PUtprd9wowRr8cYa0BK7hPzg6sQqte7",
+	"uXZz9TK4M4sVprCvLOQEwbQ/4PwW7DrGCCTzm3KpquvmI8K2LrPqNOgiI6bk/asUSrYLaykp7PsgZZMk",
+	"uY+JAKmnrSQgpHMOJ0wRimxVyFSFzGcTr2wqdYxKXoS0zxLEdRJFWJQtoALJrrqqYTmHRzDSRlyG5zsw",
+	"HUaTaFkmD7HsRxANQPRjwYeEQo3p/yilaoTJcNjfkJVScPal3m+7y5drprJz1aDQRR6zkNRruT4f9gdE",
+	"aBZeYo24wmxCBGIEzJ/0nVyr37AoF63XaXBPpNG8q+iENewsNwG1Tqo1/BZxyNUqTvOqDYfOMqadRcYj",
+	"RMY6wNjKbG/OQN7wxNSMeVm1Y1+RsR4yLPyQjAsr6BkF9msZkvjUmD1rmkyJ4n0B2ppYyh71jezoEzbm",
+	"xBo62TeFxVHBl0KUtkxiPImc3dskCy9tsaKQ0iNOMVvBoBOqv6Qba45n0nYKtdSzjJ6ANwLgrzUFKrCg",
+	"v7S/TQB22+Mb7XLu286MoOY+f45HAgfrdno4BAPy5bu+/PTXzGdVdz5yBY9yq/JgsnhlbUpVNX/p7NpX",
+	"IWajNUmwDnfVz9vYZQEHd/3l3VjzexDzLczV19SzN1yM+LadIpWrhiaqrkDCul7ClUZyZYfgEgNbIR1X",
+	"FPkRT5jqR4TZvcBseAlT//WL1+zr1VaOCnmwpBQ/t4U1BLmqc6+SwLm7C0Kgq0hULQkEH5OgKlxHy2Gk",
+	"4F51EByNjlDEB4QCijiDCdJDgBUXiAs0wOwWOeOoQsgOQQDzl/CZFYYyG5qGeTvPBi9V9j6WodfxNEV9",
+	"JTCTQxP/ZUnvG9Ir1f8lxWwjO0KyPI5nxs9lViEoAswkwpS6KESz3MgWNQs18fz2QqGhqk1lFyLQ9/XI",
+	"Og5rQGNWPnExBU2gLMQfPHS8odHbfUwpv4NgOQOIyL6zz5axfSJ833etpFtV2Tf5oMPjqr7Vm6WC+LAM",
+	"A1dWq43FJO4PIVdFnqhVq+NC9bnIGHJWUbnsmEiiZJ8wnyYBVMS8soRSB7mEmbC9nDf1S1ZVbQCKcyzn",
+	"xmceIiWIVXIrxewRa6Eibz1bZlnAHEtxQ2s44FGoXwrpTSAuIfAKcDDZZACC0cB9oat9VDDClVmCrMcX",
+	"tcuX6hEYCpDhui2Zj+uiVN9gSgfYv0V3ITAUKhVfMDpxQduIaOGDx5hQPKCw3Fo+ozY3Y0tFFhbd1yZy",
+	"z3gD87N3x6xNgBm2wBHgg+kLkcp4/jFhNbsH12C2qlZdVRjLYjW7LIAx8avZdcllO4krv6ZYqn7iYjWW",
+	"o0XA2GyDVIihKq9qrrtVmHdjKNfkx9XCP9MJW2rT+lrh4TDdp9+nqlrBy7sF13jalq36pm6g9r0jYojQ",
+	"HZL7nawtzED9yOc3sw77QO3YB/oDBBlOXnE2JCJaD4srOTYqQ1Ul+IkganKtO+8ADliAOE3sDoL97006",
+	"A7//76c0+8lMlXk7mxKtxY2H2ijxtI6i3s80/bVuG5AzE9yurVP/EhTiDKkQ0OnlexRyo2NNepYtMUvP",
+	"KpoZs3mLyT9hYtORCBvyMiHvPn26RD5nSmBfmYQx3Vya64XeciRBjEEcfdXrkNAGmugiseBB4ivkY4Up",
+	"Hx2hd5gFFIQtQaKYQgRMQWCS4y5iYNcx+Mg3Hsajr+wM+6FzhRDOtKljAlMCdBliCej8j0vEBfqAFYgj",
+	"xHFMuj4PYAQmAVDYOJcRMP09yK+MM/O/sgGzHf3TWK4dhFmAYi7VmR9yt0Wu6ed3jLCRo0c3b3K/IDj6",
+	"asaPKM2OXjYQp5fvvY43BmFtGO/46PjoRRoliWPinXg/H/10dGyCBFRoQNQLDTH65wgqAntMT09QNI6P",
+	"kPW8nqBBmovVdeOOriyI5QmySSb6iUoEk+jF8TEiw3Q2zK4/kUgkTPfsCL3mIBHjCsW6o7pUgBUeYAm2",
+	"j9ngvw90T9Ox8+Zy914cH28sS24unLkiTe5y1pEkLnCnd/LlpuPJVIB7H8gYmC4aCz4wthceSRM/Zrtx",
+	"0/Huu6NJFJukRTvPVrAWBtgrFItDk6LiReO4+MKJEumduFwfQ1vPLmO2OcFmYZCfPDudMvF9gEB2kInX",
+	"uSMS0D+Of66ZWcMK25zY4iqxYl5fp9RrhAL2Q7Oieeh4/zj+eT9UaM7IUdKANF0t2TvUxj/1cBIQ1YVx",
+	"msC9NOhwosIuZkHXqOc85MySroPciq4KPh+IVKe64TPbbqeQN16zqJwVcRlrJlNtQUmbdK0LViVRY19x",
+	"kUVOrJRdXluhHrHGRPDqL4eCR9UUNKwF6ypTfPWqbrbIyrmsxKrU6sSEfWnO/cU2WlVXRpzNi7alf1qp",
+	"9M9Ll34oagWpkOETBCleU241j+uYtcgiq7NqkZFyLKvC3kwQWA/KydTTFsljeXemLrQpCwHizAeEmWVq",
+	"ZKKNch/UZUJXMf0l10yvwmJq+Czt6ze337wRxFXnnz8ULXglEngowf6njRGRT3Ytw/4NEVK5cXU+mnVY",
+	"4NeVQF2jjuxmGxrOSCpgvF4fPRbiJW2kwp5NmdgUohdroxSY1tW0JUBWOLN2jMa5jJenIYhXR3iGadtf",
+	"ZHwIO0Jzk8C2qO5hk/K0YXG9ENQ20WpL0K5KT9sLtufSyTaL8F9XKf1iidLzx8Y0yWfbM4tlRFI5tS8B",
+	"TfnI5gxs1OLQtqnbFT9C55+vP6GPF5+QgDFgqpesek1qVq3GUZqaIg3QN7tPW8J8IbdkKbAfb7rtepSb",
+	"AnY5L+UwoS+LCRz2gCkIOpmLcOYcLJ4fdA2q+8q6BddyNzYf6LRtNfNiI6ZRGleHqIPTHrmOJxvTHIXD",
+	"uxZwkW521SX6/JliFevLX6rOpDL7g8htcb6cR6hPAYv5U66aUPrKfjBXzx5x+VD0Aulupt7njEjpdkl3",
+	"g7UCEoqQS6M1e2ljO8ZeMYZ4S6K8OlB5KZlegeBMXNghC15msyszbCtM2HqLvZ34O+xA6IUTyoVFtwWK",
+	"QxN1vWnr45Te4Yl0qlGiF8cvjtAZ+5ZAAhJhJECCcqptTLAxQxhXZOggh3iiBvx+GSzbqPEtY7kYmr4U",
+	"ll+Uh9J9j+yaxYpjPQ7OALPDEyAyLJhka+B60+ZySngKGkv3HnV3hl5LyM5Wf4WkgC1jrpB48GjxaQbq",
+	"pYnNnlOLMrUOvDYYkKvBUnNPBso7opy5vEdkusHdtDy9tMcbnszHHx6h368vPqIBDyZOnBKJhi5i8QiZ",
+	"g2YvBNHrl/9EpQNim6DughQ3ZKhunk3mQj4fyifabnbztBiyWbFK/Ah3xXUhkTKpsLkFV1itYnNf2Q/Q",
+	"M14hTguROF9uHjrThyKrmzHYk0VfxedjExXVzcLOGpmd2hCZDVryNijrLA1l3M+Oy/Pyb6dGjrW9zPy6",
+	"QdsgzAwS1rHXHd6yCNK94O3StH7A20bxZqa0pXjr+Tbsc3OIW2xjF+JNt2RjV8a0tmo3+6nurLgxdVKU",
+	"CwfvTZvlzbieU9gDQilho56PZdhNYu9kOveCj0EECeReaGuEjWRv6n69Dx5yb9Pk1s3Edy0Uwh+IVL/N",
+	"Emq3ZuQ+Sen7yyOCkHJZyikwR5NoR964zo7CMWwsisXPtqKDKm5SeC7StB3YfYSd4WKRBikAdoD0mriN",
+	"lN1604G7yOhhVyL0LaiMA+b8GSbgM8Ymqr5wQ9L7oPHOlkUhrTcHSb0RSf0W1E7BWxbTWPnhDsLmdDN7",
+	"Aem2FEIhhXLHQR0HfVDHT5/joL36oOeOsdtotGoVt53adr4fpWB7itJjAl9me7OJwUOQAuJ7ZAkHht3z",
+	"RCMrhDwRcucGkrlg42AlPUkrKZE2By50c7gXaynZRYpBske0bt5cKlxqczCUWqIVriCm2Ie9sFWNxeSH",
+	"4N8SJme+yPRJLwZ8201VRumlAHeNxPwbm85Rfj41qXkFt6dPsZRdjZsgsQdVVL/oTdOfFZ9rjpKVD3tT",
+	"88+nSVz8DvyQr2YOLpO/feaH3ISiuUszjtBnCQFSHME9CJ9IMAcinF6+R47j0RhTEhgWO/rKXsO4yxmd",
+	"nCAVEomABTEnTNnzoASMiFQgILC54aeXl/2zj3/8jzuQQdeAriDiY3D5gEgApmkDEMyqa47K153Ykksv",
+	"f3HijiVS4dLECplkpi5IJ25V0dSwd5ElOeameqP55IEDTap4HheHoF/EUYGtU+zKike9afqzwF5DUuBl",
+	"829vqv+Ui2XPe7OJrn5v71bpJoLOimhxuTtr9u0kOuyVbM62HE0iJEEpwkbyGfnh0EccQQelVz52UHon",
+	"ZQe52wNqXXUpwDYve+dv3DxYhO1yne2eF2rMwdEkMp4Dc2nUNkQrOqUU4TiWiIFzEQXmpCKOVAiROWYq",
+	"kkDHIOvFcHod+EEcb04cW1Mgm5DnJJE/8BFH2o5AJNBSmHIhO2mHfR5PzBFo7qq0JulcwN129jhKt9wf",
+	"RHW7RPVe+KRBWof2eubtHA3VQfmzfusiid6lJBxwublIIm0ShLOB3TnIilO/6+AiBylvW97RiivND+FF",
+	"7QovyjFAa4Rsb+p+uUCjACgo2D5TvDbtzJhi8eZERueG99IqMgItccEzEb62N61Bn7vqLudPS5/0pu5X",
+	"watW9bYXEJne0dFUzF2Rt6CtntYLJF5U2ZibI6xdEQo4WM1EsedISzOkUXbv26NtlQ+GkH0dZ+lutugs",
+	"e45M4c7n6iq/NSboHc6MfIwGe/HrIww46pCWyg77f430qEH7Po24JRgw3fp6566x76AYRPf9JRJagZuj",
+	"ojqIx/ZMd+Ruzkch57dV5znYdGvGbe4xF+bw43oTUTPHts6OAhysYRxWHNCga8pOZ0A/cDG7r18mcSxA",
+	"Sns+Q5BYYqEXusH8cUvHNCxxoJJd4mrAmklLRH67yu0ZbRvIc1tThnt6U/1n1SDvLWiSt6Ac/BZbYpbk",
+	"Q0jTk5Pib8EK8fbJ8OWdpFvAvvFO7hz92xHyB09rSxwAj2BT55c12iqzr9vEsJUarOdzNgax4klDW2Dn",
+	"V5aOZ8LQrjcHn96TZmk3i5anFXewfxJszbiyuNovU2crpI/cHET8lPm6fE3+ga2fJFufBoFl6SGnlN91",
+	"kxgxXjgnu0V8be/V21Fo4Tlsc+/0/KndKVBUBu501kSCQOm1gns57XRD4SmLj0jSrZxv6zTdc9jnquf8",
+	"O7rfwq1M/NYAOBNtaVZGN71HM/fGHLIoC8/Scz13eTzN+SS993iborF0t/L3EVzC71jp0NZ9QzKlozd1",
+	"vza6x74Qc/ak9wx1S9nMGaGHTfa1jtXnDBAfGjS2BIXGqmzDPvW5I2VfO9Xf1rkiccXtbdvH/Ab3ApJ/",
+	"SzNu6wiIKWarXhR52CKv49JrwMIPU4TnODN98qw2s9fzsZynrqntmOq68oPvo81hiiXfZDuYo6jRenAf",
+	"c7vZsD3FVsUkZ6bdmTJbIGkV3KueL8dFfJZOHZ+H4avrP2x+Bx+awL10CtoqWO2opGSiV9d/7B0/JcSQ",
+	"KEXMFqXsEYoSqkiMheppPd0NsMI2DuhPPaF/oiEBGhyh6yTW5Ej0ZyAmfZGwP5FR/chYB1XIex8VkVdl",
+	"zc9ZD67qgvUQwBAnVHknQ0wlZNbDgHMKmC1yelf0rgjtWGiqFbEMYTwDeZNlQBg2FJYMsJwK+GK/u8lK",
+	"8Zy8bst+tp0OJEAmVEkTCRWISVckDMUCxgTufnwut5pG7Wfuqf2x40iqDsLSpvEjJTAxBfkdI2zkaq71",
+	"jjsVu3hFnvbrEG7VkrTSVppHC4G42yirJbjAbQnsgQ+2tao5hF61OMm1pVw7x6O1Sm29Mz83suBxBz9+",
+	"PyrL9rThFNCZRP1uTwFtCTs1ccyIY1rY9CuViADLREA0vztYUXBG8U6ty4VadOZYPy+M6sGufHpbmNjN",
+	"898lKrLIHI+Zp61SW3v2W58a03fGAM/EntRdsV07eMrbpgbNtCCMYopZCzm0SS9m8bzt2BD+aMjZGcd2",
+	"Nr/ffNhu3aAStJOMmEPFYX+2Zn926Sj4Nuu5Qxx8ezVcEOR5se27wTn9Vj7zo6qQ4COh53aZQt045Io3",
+	"lxUgFRf78M9c2Za/O/+MG/Fn6J+ZCyw03czcUU/B9eK2ILqpqVlf8o6LW56orrajlypZLqQ704P7mIhV",
+	"T3jdkl175mhp9MjsKOjxjqiQsL47cm/GfRFhJEoi7+SnjLMJU+DmdYWwxYPx22jOprhsuUdnnpkNT01n",
+	"/5j0bsx8oPtPBDVkrOXssT1poyF8BVhy1sq9w9lII4sAWq9yzXx8l5GTZmTyo/A0eXwoAP6CvfP4G0PG",
+	"M+PxWXds99rO7UPB/wJ2YPU5VreT9/RZXQCDu71z+pWmYq+Mvm82M/NwUKkV614Gd8+BzWQSQQv4TJPx",
+	"/TGak9bAAggQYEEnB0YrO5iSCJy6f/oMl8QjgYP9c9xnS8ezNWJd/1ppxV5SzJADwkGzlharBvStD11g",
+	"XJGhQ0fO61t43JNKAI5mb8ubP+mT3tT9slp5mLDcYe6p+3nvvuNLQ8ghqm7TAQXG1I7d4LYP8p1dbxra",
+	"XfdLKwK2oSh01Yet/faneWeM0Qq+yIS/YdXeVP9px+HojlUWW3CW5ENUdauy9dqF8t2ef16bfLdzSG9H",
+	"yxzS7lqfdtdWJSN4xLs+D/JBKrHq5g4HLD/sTWN1nT/OLS2SyLAnk4EGwABmzwWYYx562FdkDN3ZgVzz",
+	"75UCFmDmV3zrh4lgFY8plrKbKELJX9hibr6IgDGwpKJKSUYsiSvomNofD7MDVtICnEe58uVBqjnuruFt",
+	"ZacrCw44vzVXSTcXu8NEUSJzVEuFh8M93iR6bdrfevjPIQyncRFoUICwb+6Myy8BLTz2cv1oHqC9qfmz",
+	"qqm7Oai+hTqkVh0SaWk92LgtsXEL6G4HuLdz73mdJbsH6G7eljWdOBizLTZmW8BndWqjF4AxMLFacedr",
+	"ad5DH7BUyFqx9h3yMWNcoQGgWesB+uGX418RxVL1TakfK7mWO8vo9Yzs70Dz5PGTH7PyFlUKsu+R22aY",
+	"sBzXMk4T2+a0Jn65+n75RRz4pS6Ao+X8Mua3kHeq7J5pNAW5yxf2xTgVp+CfUpqdFI/sUD2zI/FxvodD",
+	"LhA294a0DaWmdo3NZOOW04WxlnQxZLulZ9oUtkVfpkW1RYU4oxMkQRVWVGlKXSXOEwdzN0BPfxVkenJY",
+	"BbVOz8QU++kyKGXHfTKxY4qcVzh90pu6XwUfdNXbHh5jQvGAUHNveGPR0k1CTaWKR9I2fsCjiNg7WrKC",
+	"qSe7N01/FeqpyZstPO5N3b+X2S56sdishHtbvEF96g0ACxCniQq9ky83muUliHEqWBJBvROvZ5zPDgXT",
+	"VMKEgKkKjQPbPTF3n+j/m2w8O8ERMIUwC6zIzISdnBNgFbWdJgFRiPIRgrGeA/SDXanqylIZq+Xrj7Oq",
+	"sP4kT+hoElXU/JkVLlhB9jJ3BCyIOTEtUcwCwkZIEgWdwlXzudbSO+Bnzc1Odp+Wg0ALj+1VgrkH7sqr",
+	"/KMBodTI51wpiqWWk7lHGd/knmX51blnUnFh3P6zR26bKP+oGKj3cPPw/wEAAP//",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

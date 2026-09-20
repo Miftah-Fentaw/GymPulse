@@ -42,7 +42,7 @@ func Pool(t *testing.T) *pgxpool.Pool {
 	name := "gympulse_test_" + randomHex(8)
 	ident := db.QuoteIdent(name)
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+ident); err != nil {
-		admin.Close(ctx)
+		_ = admin.Close(ctx)
 		t.Fatalf("CREATE DATABASE %s (need CREATEDB on the TEST_DATABASE_URL role): %v", name, err)
 	}
 	if err := admin.Close(ctx); err != nil {
@@ -108,7 +108,9 @@ func dropDB(adminURL, name string) {
 	if err != nil {
 		return
 	}
-	defer admin.Close(ctx)
+	defer func() {
+		_ = admin.Close(ctx)
+	}()
 	_, _ = admin.Exec(ctx, "DROP DATABASE IF EXISTS "+db.QuoteIdent(name)+" WITH (FORCE)")
 }
 

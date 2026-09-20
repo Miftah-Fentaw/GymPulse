@@ -9,10 +9,13 @@ import (
 )
 
 type Config struct {
-	HTTPAddr    string `env:"HTTP_ADDR" envDefault:":8080"`
-	LogLevel    string `env:"LOG_LEVEL" envDefault:"info"`
-	DatabaseURL string `env:"DATABASE_URL,required,notEmpty"`
-	AutoMigrate bool   `env:"AUTO_MIGRATE" envDefault:"false"`
+	HTTPAddr       string `env:"HTTP_ADDR" envDefault:":8080"`
+	LogLevel       string `env:"LOG_LEVEL" envDefault:"info"`
+	DatabaseURL    string `env:"DATABASE_URL,required,notEmpty"`
+	AutoMigrate    bool   `env:"AUTO_MIGRATE" envDefault:"false"`
+	AuthJWTSecret  string `env:"AUTH_JWT_SECRET"`
+	BootstrapToken string `env:"BOOTSTRAP_TOKEN"`
+	CORSOrigins    string `env:"CORS_ORIGINS" envDefault:""`
 }
 
 func Load() (Config, error) {

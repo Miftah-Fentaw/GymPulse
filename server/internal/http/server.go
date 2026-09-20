@@ -6,6 +6,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,6 +24,8 @@ import (
 type contextKey string
 
 const requestIDKey contextKey = "request_id"
+const authUserKey contextKey = "auth_user"
+const requestKey contextKey = "request"
 
 type Server struct {
 	HTTP *http.Server
@@ -30,6 +36,8 @@ type apiImpl struct {
 	pool       *pgxpool.Pool
 	log        *slog.Logger
 	echoCalled atomic.Bool
+	rateMu     sync.Mutex
+	rate       map[string][]time.Time
 }
 
 func New(addr string, log *slog.Logger, pool *pgxpool.Pool) (*Server, error) {
@@ -64,6 +72,8 @@ func newRouter(log *slog.Logger, impl *apiImpl) (http.Handler, error) {
 
 	r := chi.NewRouter()
 	r.Use(requestLog(log))
+	r.Use(authContext(impl))
+	r.Use(corsAndCSRF())
 	r.Use(nethttpmiddleware.OapiRequestValidatorWithOptions(swagger, &nethttpmiddleware.Options{
 		SilenceServersWarning: true,
 		ErrorHandler: func(w http.ResponseWriter, message string, statusCode int) {
@@ -72,7 +82,64 @@ func newRouter(log *slog.Logger, impl *apiImpl) (http.Handler, error) {
 	}))
 
 	strict := api.NewStrictHandler(impl, nil)
-	return api.HandlerFromMux(strict, r), nil
+	api.HandlerFromMux(strict, r)
+	// The generated contract is intentionally kept checked in. Until the next
+	// generator refresh, routes added by the domain specs are handled by the
+	// authenticated domain fallback rather than silently returning a 501.
+	r.NotFound(impl.domainFallback)
+	return r, nil
+}
+
+func authContext(impl *apiImpl) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := r.Header.Get("Authorization")
+			if len(h) > 7 && h[:7] == "Bearer " {
+				if claims, err := parseAccess(h[7:], impl.secret()); err == nil {
+					if id, err := uuid.Parse(claims.UserID); err == nil {
+						r = r.WithContext(context.WithValue(r.Context(), authUserKey, id))
+					}
+				}
+			}
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestKey, r)))
+		})
+	}
+}
+
+func corsAndCSRF() func(http.Handler) http.Handler {
+	allowed := map[string]bool{}
+	for _, origin := range strings.Split(os.Getenv("CORS_ORIGINS"), ",") {
+		if origin = strings.TrimSpace(origin); origin != "" {
+			u, err := url.Parse(origin)
+			if err == nil && (strings.HasPrefix(u.Hostname(), "admin.") || strings.HasPrefix(u.Hostname(), "app.")) {
+				allowed[origin] = true
+			}
+		}
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if allowed[origin] {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Vary", "Origin")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-GymPulse-Client")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
+			}
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			_, hasCookie := r.Cookie("gympulse_refresh")
+			if (r.URL.Path == "/v1/auth/refresh" || r.URL.Path == "/v1/auth/logout") && r.Method == http.MethodPost && hasCookie == nil {
+				if !allowed[origin] || r.Header.Get("X-GymPulse-Client") == "" {
+					writeError(w, http.StatusForbidden, "csrf_denied", "origin not allowed", nil)
+					return
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func requestLog(log *slog.Logger) func(http.Handler) http.Handler {

@@ -70,6 +70,9 @@ func runServer() error {
 	if err != nil {
 		return err
 	}
+	if cfg.AuthJWTSecret == "" {
+		return errors.New("AUTH_JWT_SECRET is required")
+	}
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.SlogLevel()}))
 	slog.SetDefault(log)

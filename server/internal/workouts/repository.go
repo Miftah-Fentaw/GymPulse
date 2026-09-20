@@ -1,0 +1,5 @@
+package workouts
+import ("context"; "github.com/google/uuid"; "github.com/jackc/pgx/v5"; "time")
+type Log struct { ID,GymID,MemberID uuid.UUID; AuthorUserID *uuid.UUID; Title,Notes string; PerformedAt time.Time; Metrics []byte }
+func Create(ctx context.Context, tx pgx.Tx, l Log) error {_,err:=tx.Exec(ctx,`INSERT INTO workout_logs(id,gym_id,member_id,author_user_id,title,notes,performed_at,metrics) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,l.ID,l.GymID,l.MemberID,l.AuthorUserID,l.Title,l.Notes,l.PerformedAt,l.Metrics);return err}
+func List(ctx context.Context, tx pgx.Tx, gymID,memberID uuid.UUID)([]Log,error){rows,err:=tx.Query(ctx,`SELECT id,gym_id,member_id,author_user_id,title,COALESCE(notes,''),performed_at,metrics FROM workout_logs WHERE gym_id=$1 AND member_id=$2 ORDER BY performed_at DESC`,gymID,memberID);if err!=nil{return nil,err};defer rows.Close();var out []Log;for rows.Next(){var l Log;if err:=rows.Scan(&l.ID,&l.GymID,&l.MemberID,&l.AuthorUserID,&l.Title,&l.Notes,&l.PerformedAt,&l.Metrics);err!=nil{return nil,err};out=append(out,l)};return out,rows.Err()}
