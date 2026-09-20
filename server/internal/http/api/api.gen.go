@@ -65,10 +65,21 @@ type EchoResponse struct {
 // ErrorEnvelope defines model for ErrorEnvelope.
 type ErrorEnvelope struct {
 	Error struct {
-		Code    string                  `json:"code"`
-		Details *map[string]interface{} `json:"details,omitempty"`
-		Message string                  `json:"message"`
+		Code      string                       `json:"code"`
+		Details   *ErrorEnvelope_Error_Details `json:"details,omitempty"`
+		Message   string                       `json:"message"`
+		RequestId string                       `json:"request_id"`
 	} `json:"error"`
+}
+
+// ErrorEnvelope_Error_Details defines model for ErrorEnvelope.Error.Details.
+type ErrorEnvelope_Error_Details struct {
+	Fields *[]struct {
+		Code    string `json:"code"`
+		Field   string `json:"field"`
+		Message string `json:"message"`
+	} `json:"fields,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
 // HealthResponse defines model for HealthResponse.
@@ -92,6 +103,74 @@ type Error = ErrorEnvelope
 
 // PostEchoJSONRequestBody defines body for PostEcho for application/json ContentType.
 type PostEchoJSONRequestBody = EchoRequest
+
+// Getter for additional properties for ErrorEnvelope_Error_Details. Returns the specified
+// element and whether it was found
+func (a ErrorEnvelope_Error_Details) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ErrorEnvelope_Error_Details
+func (a *ErrorEnvelope_Error_Details) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ErrorEnvelope_Error_Details to handle AdditionalProperties
+func (a *ErrorEnvelope_Error_Details) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["fields"]; found {
+		err = json.Unmarshal(raw, &a.Fields)
+		if err != nil {
+			return fmt.Errorf("error reading 'fields': %w", err)
+		}
+		delete(object, "fields")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ErrorEnvelope_Error_Details to handle AdditionalProperties
+func (a ErrorEnvelope_Error_Details) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Fields != nil {
+		object["fields"], err = json.Marshal(a.Fields)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'fields': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -535,36 +614,41 @@ func (sh *strictHandler) PostEcho(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"ijC6EscHxBmaCkEMpbX79PH0vwAAAP//",
+	"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",
+	"AAD//w==",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,
