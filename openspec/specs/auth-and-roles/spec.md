@@ -123,7 +123,7 @@ An authenticated user SHALL list their refresh sessions and revoke one of them v
 - **AND** other sessions remain usable
 
 ### Requirement: Staff directory and roles
-Owner, manager, and receptionist SHALL list staff for their gym. Owner and manager SHALL update staff profile fields, replace roles, deactivate, and reactivate. The last remaining owner MUST NOT be deactivated or have the owner role removed.
+Owner, manager, and receptionist SHALL list staff for their gym. Owner and manager SHALL update staff profile fields, replace roles, deactivate, and reactivate. **Only an owner MAY grant or revoke the `owner` and `manager` roles. A manager MAY invite and edit `receptionist` and `trainer` accounts only.** The last remaining active owner MUST NOT be deactivated, demoted, or have the owner role removed; the server MUST return 409 with `error.code: last_owner`.
 
 #### Scenario: List staff
 - **WHEN** a receptionist lists staff
@@ -131,9 +131,19 @@ Owner, manager, and receptionist SHALL list staff for their gym. Owner and manag
 - **AND** another gym's staff are not included
 
 #### Scenario: Last owner protected
-- **WHEN** a manager attempts to remove the owner role from the only owner
-- **THEN** the server rejects the change
+- **WHEN** a manager or owner attempts to remove the owner role from the only remaining owner
+- **THEN** the server responds 409 with error.code last_owner
 - **AND** the owner role remains
+
+#### Scenario: Manager cannot grant manager role
+- **WHEN** a manager attempts to invite or assign the manager or owner role to another user
+- **THEN** the server responds 403
+- **AND** no role change is recorded
+
+#### Scenario: Last owner cannot be deactivated
+- **WHEN** a manager or owner attempts to deactivate the last active owner
+- **THEN** the server responds 409 with error.code last_owner
+- **AND** the account remains active
 
 ### Requirement: Login rate limiting
 `POST /v1/auth/login` SHALL be rate-limited per IP and per email. Exhausted limits MUST return 429 with the standard error envelope and MUST NOT reveal whether the email exists.
@@ -166,3 +176,19 @@ Authenticated principals SHALL read gym settings. Owner and manager SHALL update
 - **WHEN** a manager PATCHes the gym timezone to a valid IANA name
 - **THEN** subsequent "today" calculations for check-in and reports use that zone
 - **AND** a receptionist cannot PATCH gym settings
+
+### Requirement: Password hashing
+Passwords SHALL be stored with argon2id. The API MUST never return a password hash.
+
+#### Scenario: Hash at rest
+- **WHEN** a user account is created with a password
+- **THEN** the database stores an argon2id hash, not the plaintext
+- **AND** GET/list user payloads omit the hash
+
+### Requirement: Bootstrap owner
+A fresh deployment SHALL be able to create the first owner (documented env bootstrap or a one-time setup endpoint guarded so it only works when no owner exists).
+
+#### Scenario: First owner
+- **WHEN** the gym has no owner and the documented bootstrap is used
+- **THEN** an owner user exists for that gym
+- **AND** repeating the bootstrap after an owner exists is rejected
