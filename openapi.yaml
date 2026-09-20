@@ -12,7 +12,13 @@ servers:
 tags:
   - name: health
   - name: auth
+  - name: staff
+    description: Staff account management and role operations
+  - name: audit
+    description: Audit log events (owner and manager only)
   - name: gym
+  - name: public
+    description: Unauthenticated public endpoints (landing site, lead capture)
   - name: members
   - name: memberships
   - name: leads
@@ -76,9 +82,11 @@ paths:
       summary: Bootstrap validation probe
       description: |
         Phase: mvp. Change: bootstrap-server. Requires: public. Echoes a message. Used to exercise OpenAPI request validation.
+        Dev-only: this endpoint is unregistered when APP_ENV=production. Remove once a real validated endpoint exists.
       x-gympulse-phase: mvp
       x-gympulse-change: bootstrap-server
       x-gympulse-requires: public
+      x-gympulse-dev-only: true
       security: []
       requestBody:
         required: true
@@ -113,17 +121,20 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Login successful; access token returned, refresh cookie set
+          headers:
+            Set-Cookie:
+              description: httpOnly Secure refresh token cookie
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/LoginResponse'
         "400":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
-        "409":
+        "401":
           $ref: '#/components/responses/Error'
         "429":
           $ref: '#/components/responses/Error'
@@ -137,19 +148,32 @@ paths:
       x-gympulse-phase: mvp
       x-gympulse-change: auth-and-roles
       x-gympulse-requires: public
-      security: []
+      security:
+        - cookieAuth: []
+        - {}
+      parameters:
+        - $ref: '#/components/parameters/XGymPulseClient'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
       responses:
-        "201":
-          description: Success
+        "200":
+          description: New access token issued; refresh cookie rotated
+          headers:
+            Set-Cookie:
+              description: Rotated httpOnly Secure refresh token cookie
+              schema:
+                type: string
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/RefreshResponse'
         "400":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
-        "409":
+        "401":
           $ref: '#/components/responses/Error'
         "429":
           $ref: '#/components/responses/Error'
@@ -163,22 +187,19 @@ paths:
       x-gympulse-phase: mvp
       x-gympulse-change: auth-and-roles
       x-gympulse-requires: authenticated
+      parameters:
+        - $ref: '#/components/parameters/XGymPulseClient'
       responses:
-        "201":
-          description: Success
-          content:
-            application/json:
+        "204":
+          description: Session revoked; refresh cookie cleared
+          headers:
+            Set-Cookie:
+              description: Cleared refresh cookie
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                type: string
         "400":
           $ref: '#/components/responses/Error'
         "401":
-          $ref: '#/components/responses/Error'
-        "403":
-          $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
-        "409":
           $ref: '#/components/responses/Error'
   /v1/auth/bootstrap-owner:
     post:
@@ -186,7 +207,7 @@ paths:
       tags: [auth]
       summary: Create first owner
       description: |
-        Phase: mvp. Change: auth-and-roles. Requires: public. Rejected once an owner exists.
+        Phase: mvp. Change: auth-and-roles. Requires: public. Rejected once an owner exists. Requires BOOTSTRAP_TOKEN env var.
       x-gympulse-phase: mvp
       x-gympulse-change: auth-and-roles
       x-gympulse-requires: public
@@ -199,18 +220,14 @@ paths:
               $ref: '#/components/schemas/BootstrapOwnerRequest'
       responses:
         "201":
-          description: Success
+          description: First owner created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/JsonObject'
         "400":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
         "409":
-          $ref: '#/components/responses/Error'
-        "429":
           $ref: '#/components/responses/Error'
   /v1/auth/password/change:
     post:
@@ -229,21 +246,13 @@ paths:
             schema:
               $ref: '#/components/schemas/PasswordChangeRequest'
       responses:
-        "201":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JsonObject'
+        "204":
+          description: Password changed; current session retained
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
-        "409":
           $ref: '#/components/responses/Error'
   /v1/auth/password/forgot:
     post:
@@ -251,7 +260,7 @@ paths:
       tags: [auth]
       summary: Request password reset
       description: |
-        Phase: mvp. Change: auth-and-roles. Requires: public. Always returns success. Enqueues a reset token via the notification outbox.
+        Phase: mvp. Change: auth-and-roles. Requires: public. Always returns 202. Enqueues a reset token via the notification outbox.
       x-gympulse-phase: mvp
       x-gympulse-change: auth-and-roles
       x-gympulse-requires: public
@@ -263,20 +272,12 @@ paths:
             schema:
               $ref: '#/components/schemas/PasswordForgotRequest'
       responses:
-        "201":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JsonObject'
+        "202":
+          description: Request accepted; reset email enqueued if email exists
         "400":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
-        "409":
-          $ref: '#/components/responses/Error'
         "429":
-          $ref: '#/components/responses/Error'
+          $ref: '#/components/responses/TooManyRequests'
   /v1/auth/password/reset:
     post:
       operationId: postAuthPasswordReset
@@ -295,20 +296,14 @@ paths:
             schema:
               $ref: '#/components/schemas/PasswordResetRequest'
       responses:
-        "201":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JsonObject'
+        "204":
+          description: Password reset; all refresh sessions revoked
         "400":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
-        "409":
+        "401":
           $ref: '#/components/responses/Error'
         "429":
-          $ref: '#/components/responses/Error'
+          $ref: '#/components/responses/TooManyRequests'
   /v1/auth/invite:
     post:
       operationId: postAuthInvite
@@ -331,14 +326,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/InviteResponse'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
@@ -365,15 +358,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/InviteAcceptResponse'
         "400":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
         "429":
-          $ref: '#/components/responses/Error'
+          $ref: '#/components/responses/TooManyRequests'
   /v1/auth/verify-email:
     post:
       operationId: postAuthVerifyEmail
@@ -396,8 +387,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
@@ -423,8 +412,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
@@ -454,12 +441,10 @@ paths:
                 $ref: '#/components/schemas/JsonObject'
         "400":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
         "429":
-          $ref: '#/components/responses/Error'
+          $ref: '#/components/responses/TooManyRequests'
   /v1/me:
     get:
       operationId: getMe
@@ -476,14 +461,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/MeResponse'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
     patch:
       operationId: patchMe
@@ -506,14 +489,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/MeResponse'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
@@ -533,7 +514,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/SessionsResponse'
         "400":
           $ref: '#/components/responses/Error'
         "401":
@@ -573,7 +554,7 @@ paths:
   /v1/staff:
     get:
       operationId: listStaff
-      tags: [auth]
+      tags: [staff]
       summary: List staff accounts
       description: |
         Phase: mvp. Change: auth-and-roles. Requires: owner, manager, receptionist.
@@ -581,19 +562,8 @@ paths:
       x-gympulse-change: auth-and-roles
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
@@ -607,12 +577,10 @@ paths:
           $ref: '#/components/responses/Error'
         "403":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
   /v1/staff/{staffId}:
     get:
       operationId: getStaff
-      tags: [auth]
+      tags: [staff]
       summary: Get staff account
       description: |
         Phase: mvp. Change: auth-and-roles. Requires: owner, manager, receptionist.
@@ -643,7 +611,7 @@ paths:
           $ref: '#/components/responses/Error'
     patch:
       operationId: patchStaff
-      tags: [auth]
+      tags: [staff]
       summary: Update staff account
       description: |
         Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
@@ -683,10 +651,10 @@ paths:
   /v1/staff/{staffId}/roles:
     put:
       operationId: putStaffRoles
-      tags: [auth]
+      tags: [staff]
       summary: Replace staff roles
       description: |
-        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager. Owner role changes require owner; manager can only set receptionist/trainer.
       x-gympulse-phase: mvp
       x-gympulse-change: auth-and-roles
       x-gympulse-requires: owner, manager
@@ -723,10 +691,10 @@ paths:
   /v1/staff/{staffId}/deactivate:
     post:
       operationId: postStaffDeactivate
-      tags: [auth]
+      tags: [staff]
       summary: Deactivate staff
       description: |
-        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+        Phase: mvp. Change: auth-and-roles. Requires: owner, manager. Last active owner cannot be deactivated (409 last_owner).
       x-gympulse-phase: mvp
       x-gympulse-change: auth-and-roles
       x-gympulse-requires: owner, manager
@@ -738,8 +706,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Staff account deactivated; returns updated account
           content:
             application/json:
               schema:
@@ -757,7 +725,7 @@ paths:
   /v1/staff/{staffId}/reactivate:
     post:
       operationId: postStaffReactivate
-      tags: [auth]
+      tags: [staff]
       summary: Reactivate staff
       description: |
         Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
@@ -772,8 +740,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Staff account reactivated; returns updated account
           content:
             application/json:
               schema:
@@ -791,7 +759,7 @@ paths:
   /v1/staff/{staffId}/revoke-sessions:
     post:
       operationId: postStaffRevokeSessions
-      tags: [auth]
+      tags: [staff]
       summary: Revoke all sessions for a user
       description: |
         Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
@@ -806,12 +774,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "201":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JsonObject'
+        "204":
+          description: All sessions revoked
         "400":
           $ref: '#/components/responses/Error'
         "401":
@@ -820,12 +784,10 @@ paths:
           $ref: '#/components/responses/Error'
         "404":
           $ref: '#/components/responses/Error'
-        "409":
-          $ref: '#/components/responses/Error'
   /v1/audit-events:
     get:
       operationId: listAuditEvents
-      tags: [auth]
+      tags: [audit]
       summary: List audit events
       description: |
         Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
@@ -833,24 +795,14 @@ paths:
       x-gympulse-change: auth-and-roles
       x-gympulse-requires: owner, manager
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
         - in: query
           name: actor_user_id
           required: false
           schema:
             type: string
+            format: uuid
         - in: query
           name: action
           required: false
@@ -861,11 +813,13 @@ paths:
           required: false
           schema:
             type: string
+            format: date-time
         - in: query
           name: to
           required: false
           schema:
             type: string
+            format: date-time
       responses:
         "200":
           description: Success
@@ -878,8 +832,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/gym:
     get:
@@ -944,10 +896,10 @@ paths:
       tags: [gym]
       summary: Get public branding
       description: |
-        Phase: mvp. Change: auth-and-roles. Requires: owner, manager.
+        Phase: mvp. Change: auth-and-roles. Requires: authenticated. All apps need branding to theme themselves.
       x-gympulse-phase: mvp
       x-gympulse-change: auth-and-roles
-      x-gympulse-requires: owner, manager
+      x-gympulse-requires: authenticated
       responses:
         "200":
           description: Success
@@ -1141,8 +1093,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Branch archived; returns updated branch
           content:
             application/json:
               schema:
@@ -1324,19 +1276,8 @@ paths:
       x-gympulse-change: members-and-memberships
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
         - in: query
           name: q
           required: false
@@ -1346,17 +1287,14 @@ paths:
           name: status
           required: false
           schema:
-            type: string
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
+            $ref: '#/components/schemas/MemberStatus'
+        - $ref: '#/components/parameters/BranchId'
         - in: query
           name: plan_id
           required: false
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: Success
@@ -1369,8 +1307,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
     post:
       operationId: createMember
@@ -1493,8 +1429,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Member archived; returns updated member
           content:
             application/json:
               schema:
@@ -1527,8 +1463,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Member restored; returns updated member
           content:
             application/json:
               schema:
@@ -1540,8 +1476,6 @@ paths:
         "403":
           $ref: '#/components/responses/Error'
         "404":
-          $ref: '#/components/responses/Error'
-        "409":
           $ref: '#/components/responses/Error'
   /v1/members/{memberId}/notes:
     get:
@@ -1560,19 +1494,8 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
@@ -1639,18 +1562,16 @@ paths:
       x-gympulse-requires: owner, manager
       responses:
         "200":
-          description: Success
+          description: CSV file of gym members
           content:
-            application/json:
+            text/csv:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                type: string
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/members/import:
     post:
@@ -1658,13 +1579,31 @@ paths:
       tags: [members]
       summary: Import members CSV
       description: |
-        Phase: mvp. Change: members-and-memberships. Requires: owner, manager. multipart/form-data file; dry-run query supported.
+        Phase: mvp. Change: members-and-memberships. Requires: owner, manager. multipart/form-data with `file` field. Supports `dry_run` query param.
       x-gympulse-phase: mvp
       x-gympulse-change: members-and-memberships
       x-gympulse-requires: owner, manager
+      parameters:
+        - in: query
+          name: dry_run
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Import results (or dry-run preview)
           content:
             application/json:
               schema:
@@ -1674,8 +1613,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
@@ -1902,8 +1839,8 @@ paths:
             schema:
               $ref: '#/components/schemas/MembershipFreezeRequest'
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Membership frozen; returns updated membership
           content:
             application/json:
               schema:
@@ -1936,8 +1873,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Freeze ended early; returns updated membership
           content:
             application/json:
               schema:
@@ -1976,8 +1913,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ReasonRequest'
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Membership cancelled; returns updated membership
           content:
             application/json:
               schema:
@@ -2016,8 +1953,8 @@ paths:
             schema:
               $ref: '#/components/schemas/MembershipUpgradeRequest'
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Plan upgraded; returns updated membership
           content:
             application/json:
               schema:
@@ -2050,8 +1987,8 @@ paths:
             type: string
             format: uuid
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Membership renewed; returns updated membership
           content:
             application/json:
               schema:
@@ -2077,29 +2014,15 @@ paths:
       x-gympulse-change: members-and-memberships
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
         - in: query
           name: within_days
           required: false
           schema:
-            type: string
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
+            type: integer
+            minimum: 1
+        - $ref: '#/components/parameters/BranchId'
       responses:
         "200":
           description: Success
@@ -2113,15 +2036,13 @@ paths:
           $ref: '#/components/responses/Error'
         "403":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
   /v1/leads:
     post:
       operationId: createLead
-      tags: [leads]
+      tags: [public]
       summary: Public lead capture
       description: |
-        Phase: mvp. Change: members-and-memberships. Requires: public. Honeypot, per-IP rate limit, optional captcha hook.
+        Phase: mvp. Change: members-and-memberships. Requires: public. Honeypot, per-IP rate limit, optional captcha hook. Always returns 202 with no body or data.
       x-gympulse-phase: mvp
       x-gympulse-change: members-and-memberships
       x-gympulse-requires: public
@@ -2133,17 +2054,9 @@ paths:
             schema:
               $ref: '#/components/schemas/LeadCreateRequest'
       responses:
-        "201":
-          description: Success
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JsonObject'
+        "202":
+          description: Lead accepted (or silently suppressed if duplicate/honeypot)
         "400":
-          $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
-        "409":
           $ref: '#/components/responses/Error'
         "429":
           $ref: '#/components/responses/Error'
@@ -2157,24 +2070,13 @@ paths:
       x-gympulse-change: members-and-memberships
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
         - in: query
           name: status
           required: false
           schema:
-            type: string
+            $ref: '#/components/schemas/LeadStatus'
         - in: query
           name: q
           required: false
@@ -2392,13 +2294,7 @@ paths:
       x-gympulse-change: checkin-attendance
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -2418,10 +2314,10 @@ paths:
           $ref: '#/components/responses/Error'
         "403":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
+        "422":
+          $ref: '#/components/responses/UnprocessableEntity'
     get:
       operationId: listCheckins
       tags: [checkin]
@@ -2432,44 +2328,23 @@ paths:
       x-gympulse-change: checkin-attendance
       x-gympulse-requires: owner, manager, receptionist, owning member
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/BranchId'
         - in: query
           name: member_id
           required: false
           schema:
             type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+            format: uuid
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
         - in: query
           name: day
           required: false
           schema:
             type: string
+            format: date
       responses:
         "200":
           description: Success
@@ -2483,8 +2358,6 @@ paths:
           $ref: '#/components/responses/Error'
         "403":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
   /v1/checkins/staff:
     post:
       operationId: postStaffCheckin
@@ -2496,13 +2369,7 @@ paths:
       x-gympulse-change: checkin-attendance
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -2608,11 +2475,7 @@ paths:
       x-gympulse-change: checkin-attendance
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/BranchId'
       responses:
         "200":
           description: Success
@@ -2625,8 +2488,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/checkins/peak-hours:
     get:
@@ -2639,21 +2500,9 @@ paths:
       x-gympulse-change: checkin-attendance
       x-gympulse-requires: owner, manager
       parameters:
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -2667,8 +2516,6 @@ paths:
           $ref: '#/components/responses/Error'
         "403":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
   /v1/invoices:
     get:
       operationId: listInvoices
@@ -2680,39 +2527,21 @@ paths:
       x-gympulse-change: billing-payments
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
         - in: query
           name: member_id
           required: false
           schema:
             type: string
+            format: uuid
         - in: query
           name: status
           required: false
           schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+            $ref: '#/components/schemas/InvoiceStatus'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -2725,8 +2554,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/invoices/{invoiceId}:
     get:
@@ -2784,8 +2611,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ReasonRequest'
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Invoice voided; returns updated invoice
           content:
             application/json:
               schema:
@@ -2824,8 +2651,8 @@ paths:
             schema:
               $ref: '#/components/schemas/DiscountRequest'
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Discount applied; returns updated invoice
           content:
             application/json:
               schema:
@@ -2857,13 +2684,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -2872,7 +2693,7 @@ paths:
               $ref: '#/components/schemas/PaymentCreateRequest'
       responses:
         "201":
-          description: Success
+          description: Payment recorded
           content:
             application/json:
               schema:
@@ -2887,6 +2708,8 @@ paths:
           $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
+        "422":
+          $ref: '#/components/responses/UnprocessableEntity'
   /v1/invoices/{invoiceId}/receipt:
     get:
       operationId: getInvoiceReceipt
@@ -2906,7 +2729,7 @@ paths:
             format: uuid
       responses:
         "200":
-          description: Success
+          description: Receipt JSON
           content:
             application/json:
               schema:
@@ -2930,39 +2753,21 @@ paths:
       x-gympulse-change: billing-payments
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
         - in: query
           name: member_id
           required: false
           schema:
             type: string
+            format: uuid
         - in: query
           name: method
           required: false
           schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+            $ref: '#/components/schemas/PaymentMethod'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -2975,8 +2780,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/members/{memberId}/payments:
     get:
@@ -2995,19 +2798,8 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
@@ -3040,13 +2832,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -3054,8 +2840,8 @@ paths:
             schema:
               $ref: '#/components/schemas/RefundRequest'
       responses:
-        "201":
-          description: Success
+        "200":
+          description: Refund recorded; returns updated payment
           content:
             application/json:
               schema:
@@ -3070,6 +2856,8 @@ paths:
           $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
+        "422":
+          $ref: '#/components/responses/UnprocessableEntity'
   /v1/billing/overdue:
     get:
       operationId: listOverdueInvoices
@@ -3081,19 +2869,8 @@ paths:
       x-gympulse-change: billing-payments
       x-gympulse-requires: owner, manager, receptionist
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
@@ -3125,16 +2902,13 @@ paths:
           required: false
           schema:
             type: string
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
+            format: date
+        - $ref: '#/components/parameters/BranchId'
         - in: query
           name: method
           required: false
           schema:
-            type: string
+            $ref: '#/components/schemas/PaymentMethod'
       responses:
         "200":
           description: Success
@@ -3147,8 +2921,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/promo-codes:
     get:
@@ -3217,20 +2989,21 @@ paths:
       x-gympulse-phase: mvp
       x-gympulse-change: classes-booking
       x-gympulse-requires: authenticated
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/CursorPage'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
     post:
       operationId: createClassType
@@ -3314,20 +3087,22 @@ paths:
       x-gympulse-phase: mvp
       x-gympulse-change: classes-booking
       x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/BranchId'
       responses:
         "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/CursorPage'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
     post:
       operationId: createClassSchedule
@@ -3412,39 +3187,17 @@ paths:
       x-gympulse-change: classes-booking
       x-gympulse-requires: authenticated
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
         - in: query
           name: class_type_id
           required: false
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: Success
@@ -3457,8 +3210,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
     post:
       operationId: createSession
@@ -3559,10 +3310,10 @@ paths:
           $ref: '#/components/responses/Error'
         "403":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
         "409":
           $ref: '#/components/responses/Error'
+        "422":
+          $ref: '#/components/responses/UnprocessableEntity'
   /v1/sessions/{sessionId}/bookings:
     post:
       operationId: bookSession
@@ -3580,13 +3331,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -3655,20 +3400,20 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/CursorPage'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
     post:
       operationId: joinWaitlist
@@ -3686,13 +3431,7 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         "201":
           description: Success
@@ -3941,20 +3680,20 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/CursorPage'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
     post:
       operationId: assignTrainerClient
@@ -4136,39 +3875,22 @@ paths:
       x-gympulse-change: trainers-clients
       x-gympulse-requires: owner, manager, receptionist, owning trainer, owning member
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
         - in: query
           name: trainer_id
           required: false
           schema:
             type: string
+            format: uuid
         - in: query
           name: member_id
           required: false
           schema:
             type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+            format: uuid
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -4194,13 +3916,7 @@ paths:
       x-gympulse-change: trainers-clients
       x-gympulse-requires: owner, manager, receptionist, owning trainer, owning member
       parameters:
-        - in: header
-          name: Idempotency-Key
-          required: false
-          schema:
-            type: string
-            minLength: 8
-            maxLength: 128
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -4281,19 +3997,8 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
@@ -4391,19 +4096,8 @@ paths:
       x-gympulse-change: workouts-progress
       x-gympulse-requires: authenticated
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
         - in: query
           name: q
           required: false
@@ -4506,20 +4200,21 @@ paths:
       x-gympulse-phase: mvp
       x-gympulse-change: workouts-progress
       x-gympulse-requires: owner, manager, trainer
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/CursorPage'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
     post:
       operationId: createWorkoutPlan
@@ -4650,19 +4345,8 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
@@ -4806,19 +4490,8 @@ paths:
           schema:
             type: string
             format: uuid
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
@@ -4984,26 +4657,37 @@ paths:
       tags: [storage]
       summary: Upload a private file
       description: |
-        Phase: mvp. Change: storage. Requires: authenticated. multipart/form-data. Stores via the storage interface. Metadata in files table.
+        Phase: mvp. Change: storage. Requires: authenticated. multipart/form-data with `file` field. Stores via the storage interface. Metadata in files table.
       x-gympulse-phase: mvp
       x-gympulse-change: storage
       x-gympulse-requires: authenticated
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                filename:
+                  type: string
+                visibility:
+                  $ref: '#/components/schemas/FileVisibility'
       responses:
         "201":
-          description: Success
+          description: File metadata created; object stored
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/FileMetadata'
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
-        "409":
           $ref: '#/components/responses/Error'
   /v1/files/{fileId}:
     get:
@@ -5028,7 +4712,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/FileMetadata'
         "400":
           $ref: '#/components/responses/Error'
         "401":
@@ -5083,11 +4767,12 @@ paths:
             format: uuid
       responses:
         "200":
-          description: Success
+          description: File bytes
           content:
-            application/json:
+            application/octet-stream:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                type: string
+                format: binary
         "400":
           $ref: '#/components/responses/Error'
         "401":
@@ -5119,7 +4804,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                $ref: '#/components/schemas/SignedUrl'
         "400":
           $ref: '#/components/responses/Error'
         "401":
@@ -5141,16 +4826,13 @@ paths:
       x-gympulse-change: reporting
       x-gympulse-requires: owner, manager
       parameters:
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/BranchId'
         - in: query
           name: as_of
           required: false
           schema:
             type: string
+            format: date
       responses:
         "200":
           description: Success
@@ -5163,8 +4845,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/reports/churn:
     get:
@@ -5177,21 +4857,9 @@ paths:
       x-gympulse-change: reporting
       x-gympulse-requires: owner, manager
       parameters:
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -5204,8 +4872,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/reports/revenue:
     get:
@@ -5218,21 +4884,9 @@ paths:
       x-gympulse-change: reporting
       x-gympulse-requires: owner, manager
       parameters:
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -5245,8 +4899,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/reports/attendance:
     get:
@@ -5259,21 +4911,9 @@ paths:
       x-gympulse-change: reporting
       x-gympulse-requires: owner, manager
       parameters:
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -5286,8 +4926,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/reports/signups:
     get:
@@ -5300,21 +4938,9 @@ paths:
       x-gympulse-change: reporting
       x-gympulse-requires: owner, manager
       parameters:
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -5327,8 +4953,6 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/reports/class-utilization:
     get:
@@ -5341,21 +4965,9 @@ paths:
       x-gympulse-change: reporting
       x-gympulse-requires: owner, manager
       parameters:
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
           description: Success
@@ -5369,15 +4981,13 @@ paths:
           $ref: '#/components/responses/Error'
         "403":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
   /v1/reports/{report}/export:
     get:
       operationId: exportReport
       tags: [reports]
       summary: Export a report
       description: |
-        Phase: mvp. Change: reporting. Requires: owner, manager. format=csv or json. Offset pagination allowed for reports.
+        Phase: mvp. Change: reporting. Requires: owner, manager. Returns text/csv or application/json depending on format param.
       x-gympulse-phase: mvp
       x-gympulse-change: reporting
       x-gympulse-requires: owner, manager
@@ -5387,31 +4997,24 @@ paths:
           required: true
           schema:
             type: string
-            format: uuid
+            enum: [active-members, churn, revenue, attendance, signups, class-utilization]
         - in: query
           name: format
           required: false
           schema:
             type: string
-        - in: query
-          name: branch_id
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: from
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: to
-          required: false
-          schema:
-            type: string
+            enum: [csv, json]
+            default: json
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
       responses:
         "200":
-          description: Success
+          description: Report data as CSV or JSON
           content:
+            text/csv:
+              schema:
+                type: string
             application/json:
               schema:
                 $ref: '#/components/schemas/JsonObject'
@@ -5434,19 +5037,8 @@ paths:
       x-gympulse-change: notifications
       x-gympulse-requires: authenticated
       parameters:
-        - in: query
-          name: cursor
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
         "200":
           description: Success
@@ -5460,8 +5052,6 @@ paths:
           $ref: '#/components/responses/Error'
         "403":
           $ref: '#/components/responses/Error'
-        "404":
-          $ref: '#/components/responses/Error'
   /v1/notifications/stream:
     get:
       operationId: streamNotifications
@@ -5474,18 +5064,16 @@ paths:
       x-gympulse-requires: authenticated
       responses:
         "200":
-          description: Success
+          description: Server-sent events stream
           content:
-            application/json:
+            text/event-stream:
               schema:
-                $ref: '#/components/schemas/JsonObject'
+                type: string
         "400":
           $ref: '#/components/responses/Error'
         "401":
           $ref: '#/components/responses/Error'
         "403":
-          $ref: '#/components/responses/Error'
-        "404":
           $ref: '#/components/responses/Error'
   /v1/push/subscribe:
     post:
@@ -5526,7 +5114,80 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  parameters: {}
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: httpOnly Secure refresh token cookie set on the API host
+
+  parameters:
+    Cursor:
+      in: query
+      name: cursor
+      required: false
+      schema:
+        type: string
+      description: Opaque pagination cursor from a previous page's next_cursor
+
+    Limit:
+      in: query
+      name: limit
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Maximum items to return per page
+
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: false
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+      description: >
+        Client-generated idempotency key (8-128 chars). Same key + same body replays
+        the original response with Idempotent-Replayed: true. Same key + different body
+        returns 422 with error.code idempotency_conflict. Keys expire after 24h.
+
+    BranchId:
+      in: query
+      name: branch_id
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Filter by branch UUID
+
+    From:
+      in: query
+      name: from
+      required: false
+      schema:
+        type: string
+        format: date
+      description: Start date (inclusive), ISO 8601 date
+
+    To:
+      in: query
+      name: to
+      required: false
+      schema:
+        type: string
+        format: date
+      description: End date (inclusive), ISO 8601 date
+
+    XGymPulseClient:
+      in: header
+      name: X-GymPulse-Client
+      required: false
+      schema:
+        type: string
+      description: CSRF guard for cookie-authenticated auth routes (admin or app)
+
   responses:
     Error:
       description: Standard error envelope
@@ -5534,7 +5195,62 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Forbidden:
+      description: Authenticated but insufficient capabilities
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    NotFound:
+      description: Resource not found or not visible to this principal
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Conflict:
+      description: State conflict (duplicate, last_owner, etc.)
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Present on 429 responses
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    UnprocessableEntity:
+      description: Idempotency conflict or semantic validation failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          required: true
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
   schemas:
+    # ─── Bootstrap schemas (keep for codegen compat) ────────────────────────
     HealthResponse:
       type: object
       additionalProperties: false
@@ -5543,6 +5259,7 @@ components:
         status:
           type: string
           enum: [ok]
+
     ReadyResponse:
       type: object
       additionalProperties: false
@@ -5551,6 +5268,7 @@ components:
         status:
           type: string
           enum: [ok, not_ready]
+
     EchoRequest:
       type: object
       additionalProperties: false
@@ -5558,6 +5276,7 @@ components:
       properties:
         message:
           type: string
+
     EchoResponse:
       type: object
       additionalProperties: false
@@ -5565,6 +5284,8 @@ components:
       properties:
         message:
           type: string
+
+    # ─── Error envelope ──────────────────────────────────────────────────────
     ErrorEnvelope:
       type: object
       additionalProperties: false
@@ -5573,31 +5294,185 @@ components:
         error:
           type: object
           additionalProperties: false
-          required: [code, message]
+          required: [code, message, request_id]
           properties:
             code:
               type: string
             message:
               type: string
+            request_id:
+              type: string
             details:
               type: object
               additionalProperties: true
-    JsonObject:
-      type: object
-      additionalProperties: true
-    CursorPage:
+              properties:
+                fields:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [field, code, message]
+                    properties:
+                      field:
+                        type: string
+                      code:
+                        type: string
+                      message:
+                        type: string
+
+    # ─── Pagination ──────────────────────────────────────────────────────────
+    CursorPageBase:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [next_cursor]
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/JsonObject'
         next_cursor:
           type:
             - string
             - "null"
+
+    # Generic untyped page — used by list endpoints until Stage 2 types them
+    CursorPage:
+      allOf:
+        - $ref: '#/components/schemas/CursorPageBase'
+        - type: object
+          additionalProperties: false
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/JsonObject'
+
+    # Temporary untyped object — will be eliminated in Stage 2
+    JsonObject:
+      type: object
+      additionalProperties: true
+
+    # ─── Enums ───────────────────────────────────────────────────────────────
+    Role:
+      type: string
+      enum: [owner, manager, receptionist, trainer]
+
+    MembershipStatus:
+      type: string
+      enum: [pending, active, frozen, expired, cancelled]
+
+    MemberStatus:
+      type: string
+      enum: [active, archived]
+
+    InvoiceStatus:
+      type: string
+      enum: [draft, issued, partially_paid, paid, void]
+
+    PaymentMethod:
+      type: string
+      enum: [cash, bank_transfer, mobile_money]
+
+    PaymentStatus:
+      type: string
+      enum: [completed, partially_refunded, refunded]
+
+    DurationUnit:
+      type: string
+      enum: [day, week, month, year]
+
+    LeadStatus:
+      type: string
+      enum: [new, contacted, trial_booked, converted, lost]
+
+    LeadSource:
+      type: string
+      enum: [landing, walk_in, referral, social, other]
+
+    CheckinMethod:
+      type: string
+      enum: [qr, code_fallback, staff]
+
+    CheckinStatus:
+      type: string
+      enum: [valid, voided]
+
+    SessionStatus:
+      type: string
+      enum: [scheduled, cancelled, completed]
+
+    BookingStatus:
+      type: string
+      enum: [booked, attended, no_show, cancelled, late_cancelled]
+
+    PtSessionStatus:
+      type: string
+      enum: [booked, completed, cancelled, no_show]
+
+    GoalType:
+      type: string
+      enum: [weight, body_fat, strength, attendance, custom]
+
+    GoalStatus:
+      type: string
+      enum: [active, achieved, dropped]
+
+    FileVisibility:
+      type: string
+      enum: [private, public_asset]
+
+    FileMetadata:
+      type: object
+      additionalProperties: false
+      required: [id, gym_id, filename, visibility, uploader_id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        gym_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        visibility:
+          $ref: '#/components/schemas/FileVisibility'
+        uploader_id:
+          type: string
+          format: uuid
+        size:
+          type: integer
+          description: bytes
+        content_type:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    SignedUrl:
+      type: object
+      additionalProperties: false
+      required: [url, expires_at]
+      properties:
+        url:
+          type: string
+          format: uri
+        expires_at:
+          type: string
+          format: date-time
+        method:
+          type: string
+          description: HTTP method to use (GET/PUT)
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+
+    InvoiceLineKind:
+      type: string
+      enum: [membership, signup_fee, pt_session, product, other]
+
+    StaffAccountStatus:
+      type: string
+      enum: [active, invited, deactivated]
+
+    # ─── Auth request schemas ────────────────────────────────────────────────
     LoginRequest:
       type: object
       additionalProperties: false
@@ -5609,11 +5484,23 @@ components:
         password:
           type: string
           minLength: 1
+
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        refresh_token:
+          type: string
+          description: Fallback when httpOnly cookie is unavailable
+
     BootstrapOwnerRequest:
       type: object
       additionalProperties: false
-      required: [email, password]
+      required: [setup_token, email, password, gym_name]
       properties:
+        setup_token:
+          type: string
+          description: Value of BOOTSTRAP_TOKEN env var
         email:
           type: string
           format: email
@@ -5622,6 +5509,7 @@ components:
           minLength: 10
         gym_name:
           type: string
+
     PasswordChangeRequest:
       type: object
       additionalProperties: false
@@ -5632,6 +5520,7 @@ components:
         new_password:
           type: string
           minLength: 10
+
     PasswordForgotRequest:
       type: object
       additionalProperties: false
@@ -5640,6 +5529,7 @@ components:
         email:
           type: string
           format: email
+
     PasswordResetRequest:
       type: object
       additionalProperties: false
@@ -5650,6 +5540,7 @@ components:
         new_password:
           type: string
           minLength: 10
+
     StaffInviteRequest:
       type: object
       additionalProperties: false
@@ -5661,8 +5552,13 @@ components:
         roles:
           type: array
           items:
+            $ref: '#/components/schemas/Role'
+        branch_ids:
+          type: array
+          items:
             type: string
-            enum: [owner, manager, receptionist, trainer]
+            format: uuid
+
     InviteAcceptRequest:
       type: object
       additionalProperties: false
@@ -5675,6 +5571,7 @@ components:
           minLength: 10
         name:
           type: string
+
     VerifyConfirmRequest:
       type: object
       additionalProperties: false
@@ -5682,6 +5579,7 @@ components:
       properties:
         token:
           type: string
+
     MePatchRequest:
       type: object
       additionalProperties: false
@@ -5690,6 +5588,106 @@ components:
           type: string
         phone:
           type: string
+
+    # ─── Auth response schemas (Stage 2 additions for auth-and-roles) ─────────────────
+    UserSummary:
+      type: object
+      additionalProperties: false
+      required: [id, gym_id, staff_roles, has_member_profile]
+      properties:
+        id:
+          type: string
+          format: uuid
+        gym_id:
+          type: string
+          format: uuid
+        staff_roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+        has_member_profile:
+          type: boolean
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required: [access_token, user]
+      properties:
+        access_token:
+          type: string
+        expires_in:
+          type: integer
+          description: seconds until access token expiry
+        user:
+          $ref: '#/components/schemas/UserSummary'
+
+    RefreshResponse:
+      allOf:
+        - $ref: '#/components/schemas/LoginResponse'
+
+    MeResponse:
+      $ref: '#/components/schemas/UserSummary'
+
+    Session:
+      type: object
+      additionalProperties: false
+      required: [id, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        last_used:
+          type: string
+          format: date-time
+        device:
+          type: string
+        ip:
+          type: string
+        revoked:
+          type: boolean
+
+    SessionsResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+
+    InviteResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        invite_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Role'
+
+    InviteAcceptResponse:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+          format: uuid
+
+    # ───────────────────────────────────────────────────────────────────────────
+
     StaffPatchRequest:
       type: object
       additionalProperties: false
@@ -5698,6 +5696,7 @@ components:
           type: string
         phone:
           type: string
+
     StaffRolesRequest:
       type: object
       additionalProperties: false
@@ -5706,8 +5705,14 @@ components:
         roles:
           type: array
           items:
+            $ref: '#/components/schemas/Role'
+        branch_ids:
+          type: array
+          items:
             type: string
-            enum: [owner, manager, receptionist, trainer]
+            format: uuid
+
+    # ─── Gym / branch request schemas ────────────────────────────────────────
     GymPatchRequest:
       type: object
       additionalProperties: false
@@ -5718,6 +5723,8 @@ components:
           type: string
         currency:
           type: string
+          minLength: 3
+          maxLength: 3
         phone:
           type: string
         email:
@@ -5725,6 +5732,7 @@ components:
           format: email
         address:
           type: string
+
     BrandingPatchRequest:
       type: object
       additionalProperties: false
@@ -5736,6 +5744,7 @@ components:
           type: string
         public_tagline:
           type: string
+
     BranchCreateRequest:
       type: object
       additionalProperties: false
@@ -5747,6 +5756,7 @@ components:
           type: string
         phone:
           type: string
+
     BranchPatchRequest:
       type: object
       additionalProperties: false
@@ -5757,6 +5767,7 @@ components:
           type: string
         phone:
           type: string
+
     HoursRequest:
       type: object
       additionalProperties: false
@@ -5764,8 +5775,33 @@ components:
       properties:
         days:
           type: array
+          minItems: 7
+          maxItems: 7
           items:
-            $ref: '#/components/schemas/JsonObject'
+            type: object
+            additionalProperties: false
+            required: [weekday, closed]
+            properties:
+              weekday:
+                type: integer
+                minimum: 1
+                maximum: 7
+              closed:
+                type: boolean
+              intervals:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [opens_at, closes_at]
+                  properties:
+                    opens_at:
+                      type: string
+                      pattern: '^\d{2}:\d{2}$'
+                    closes_at:
+                      type: string
+                      pattern: '^\d{2}:\d{2}$'
+
     HolidayCreateRequest:
       type: object
       additionalProperties: false
@@ -5776,19 +5812,30 @@ components:
           format: date
         name:
           type: string
+        branch_id:
+          type: string
+          format: uuid
+
+    # ─── Member request schemas ──────────────────────────────────────────────
     MemberCreateRequest:
       type: object
       additionalProperties: false
-      required: [email, name, home_branch_id]
+      required: [name, home_branch_id]
       properties:
+        name:
+          type: string
         email:
           type: string
           format: email
-        name:
-          type: string
         phone:
           type: string
         home_branch_id:
+          type: string
+          format: uuid
+        date_of_birth:
+          type: string
+          format: date
+        photo_file_id:
           type: string
           format: uuid
         existing_user_id:
@@ -5800,6 +5847,7 @@ components:
           type: string
         member_code:
           type: string
+
     MemberPatchRequest:
       type: object
       additionalProperties: false
@@ -5811,10 +5859,17 @@ components:
         home_branch_id:
           type: string
           format: uuid
+        date_of_birth:
+          type: string
+          format: date
+        photo_file_id:
+          type: string
+          format: uuid
         emergency_contact_name:
           type: string
         emergency_contact_phone:
           type: string
+
     NoteCreateRequest:
       type: object
       additionalProperties: false
@@ -5822,25 +5877,96 @@ components:
       properties:
         body:
           type: string
+
+    # ─── Plan / membership request schemas ───────────────────────────────────
     PlanCreateRequest:
       type: object
       additionalProperties: false
-      required: [name, price_minor, period]
+      required: [name, price_minor, duration_unit, duration_count]
       properties:
         name:
           type: string
+        description:
+          type: string
         price_minor:
           type: integer
-        period:
-          type: string
+          format: int64
+          minimum: 0
+        duration_unit:
+          $ref: '#/components/schemas/DurationUnit'
+        duration_count:
+          type: integer
+          minimum: 1
+        visits_included:
+          type:
+            - integer
+            - "null"
+          description: null means unlimited
+        signup_fee_minor:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+        freeze_allowed:
+          type: boolean
+          default: false
+        max_freeze_days:
+          type: integer
+          minimum: 0
+          default: 0
         branch_ids:
           type: array
           items:
             type: string
             format: uuid
+          description: Empty array means all branches
+        is_active:
+          type: boolean
+          default: true
+        sort_order:
+          type: integer
+          default: 0
+
     PlanPatchRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price_minor:
+          type: integer
+          format: int64
+          minimum: 0
+        duration_unit:
+          $ref: '#/components/schemas/DurationUnit'
+        duration_count:
+          type: integer
+          minimum: 1
+        visits_included:
+          type:
+            - integer
+            - "null"
+        signup_fee_minor:
+          type: integer
+          format: int64
+          minimum: 0
+        freeze_allowed:
+          type: boolean
+        max_freeze_days:
+          type: integer
+          minimum: 0
+        branch_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+
     MembershipAssignRequest:
       type: object
       additionalProperties: false
@@ -5852,6 +5978,15 @@ components:
         start_date:
           type: string
           format: date
+        auto_renew:
+          type: boolean
+          default: false
+        create_invoice:
+          type: boolean
+          default: true
+        initial_payment:
+          $ref: '#/components/schemas/PaymentCreateRequest'
+
     MembershipFreezeRequest:
       type: object
       additionalProperties: false
@@ -5865,6 +6000,7 @@ components:
           format: date
         reason:
           type: string
+
     MembershipUpgradeRequest:
       type: object
       additionalProperties: false
@@ -5876,34 +6012,57 @@ components:
         effective_date:
           type: string
           format: date
+
     ReasonRequest:
       type: object
       additionalProperties: false
       properties:
         reason:
           type: string
+
+    # ─── Lead request schemas ────────────────────────────────────────────────
     LeadCreateRequest:
       type: object
       additionalProperties: false
-      required: [name, contact]
+      anyOf:
+        - required: [name, phone]
+        - required: [name, email]
       properties:
         name:
           type: string
-        contact:
+          maxLength: 200
+        phone:
           type: string
+        email:
+          type: string
+          format: email
         message:
           type: string
+          maxLength: 2000
+        source:
+          $ref: '#/components/schemas/LeadSource'
+        preferred_branch_id:
+          type: string
+          format: uuid
+        marketing_consent:
+          type: boolean
+          default: false
         honeypot:
           type: string
+          description: Must be empty; non-empty submissions are silently discarded
         captcha_token:
           type: string
+
     LeadPatchRequest:
       type: object
       additionalProperties: false
       properties:
         status:
+          $ref: '#/components/schemas/LeadStatus'
+        assigned_to_user_id:
           type: string
-          enum: [open, contacted, dismissed, converted]
+          format: uuid
+
     LeadConvertRequest:
       type: object
       additionalProperties: false
@@ -5917,22 +6076,33 @@ components:
           format: email
         name:
           type: string
+
+    # ─── Check-in request schemas ────────────────────────────────────────────
     CheckinRequest:
       type: object
       additionalProperties: false
-      properties:
-        token:
-          type: string
-        member_code:
-          type: string
-        method:
-          type: string
-          enum: [qr, code_fallback]
-        branch_id:
-          type: string
-          format: uuid
-        photo_confirmed:
-          type: boolean
+      oneOf:
+        - required: [token, branch_id]
+          properties:
+            token:
+              type: string
+            branch_id:
+              type: string
+              format: uuid
+        - required: [member_code, branch_id, method, photo_confirmed]
+          properties:
+            member_code:
+              type: string
+            branch_id:
+              type: string
+              format: uuid
+            method:
+              type: string
+              enum: [code_fallback]
+            photo_confirmed:
+              type: boolean
+              enum: [true]
+
     StaffCheckinRequest:
       type: object
       additionalProperties: false
@@ -5944,6 +6114,7 @@ components:
         branch_id:
           type: string
           format: uuid
+
     CheckinCorrectionRequest:
       type: object
       additionalProperties: false
@@ -5958,16 +6129,23 @@ components:
           format: date-time
         reason:
           type: string
+
+    # ─── Billing request schemas ─────────────────────────────────────────────
     DiscountRequest:
       type: object
       additionalProperties: false
       properties:
         amount_minor:
           type: integer
+          format: int64
+          minimum: 1
         percent:
           type: integer
+          minimum: 1
+          maximum: 100
         reason:
           type: string
+
     PaymentCreateRequest:
       type: object
       additionalProperties: false
@@ -5975,27 +6153,62 @@ components:
       properties:
         amount_minor:
           type: integer
+          format: int64
+          minimum: 1
         method:
+          $ref: '#/components/schemas/PaymentMethod'
+        provider:
           type: string
-          enum: [cash, bank_transfer, mobile_money]
+          description: Free text, e.g. mobile money operator or bank name
+        reference:
+          type: string
+        paid_at:
+          type: string
+          format: date-time
         note:
           type: string
+
     RefundRequest:
       type: object
       additionalProperties: false
-      required: [amount_minor]
+      required: [amount_minor, reason]
       properties:
         amount_minor:
           type: integer
+          format: int64
+          minimum: 1
         reason:
           type: string
+
     PromoCodeCreateRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      required: [code]
+      properties:
+        code:
+          type: string
+        description:
+          type: string
+        discount_percent:
+          type: integer
+          minimum: 1
+          maximum: 100
+        discount_minor:
+          type: integer
+          format: int64
+          minimum: 1
+        max_uses:
+          type: integer
+          minimum: 1
+        expires_at:
+          type: string
+          format: date-time
+
+    # ─── Classes / booking request schemas ───────────────────────────────────
     ClassTypeCreateRequest:
       type: object
       additionalProperties: false
-      required: [name]
+      required: [name, default_capacity]
       properties:
         name:
           type: string
@@ -6003,15 +6216,96 @@ components:
           type: string
         default_capacity:
           type: integer
+          minimum: 1
+        default_duration_min:
+          type: integer
+          minimum: 1
+        color:
+          type: string
+
     ClassTypePatchRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        default_capacity:
+          type: integer
+          minimum: 1
+        default_duration_min:
+          type: integer
+          minimum: 1
+        color:
+          type: string
+        is_active:
+          type: boolean
+
     ClassScheduleCreateRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      required: [class_type_id, branch_id, weekdays, start_time, duration_min, capacity, effective_from]
+      properties:
+        class_type_id:
+          type: string
+          format: uuid
+        branch_id:
+          type: string
+          format: uuid
+        trainer_id:
+          type: string
+          format: uuid
+        weekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 7
+        start_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        duration_min:
+          type: integer
+          minimum: 1
+        capacity:
+          type: integer
+          minimum: 1
+        effective_from:
+          type: string
+          format: date
+        effective_until:
+          type: string
+          format: date
+
     ClassSchedulePatchRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      properties:
+        trainer_id:
+          type: string
+          format: uuid
+        weekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 7
+        start_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        duration_min:
+          type: integer
+          minimum: 1
+        capacity:
+          type: integer
+          minimum: 1
+        effective_until:
+          type: string
+          format: date
+        is_active:
+          type: boolean
+
     SessionCreateRequest:
       type: object
       additionalProperties: false
@@ -6025,6 +6319,9 @@ components:
         branch_id:
           type: string
           format: uuid
+        trainer_id:
+          type: string
+          format: uuid
         starts_at:
           type: string
           format: date-time
@@ -6033,12 +6330,49 @@ components:
           format: date-time
         capacity:
           type: integer
+          minimum: 1
+
+    SessionPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
         trainer_id:
           type: string
           format: uuid
-    SessionPatchRequest:
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+          minimum: 1
+
+    SessionCancelRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+        notify_members:
+          type: boolean
+          default: true
+
+    ScheduleGenerateRequest:
+      type: object
+      additionalProperties: false
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+
     BookingCreateRequest:
       type: object
       additionalProperties: false
@@ -6046,16 +6380,27 @@ components:
         member_id:
           type: string
           format: uuid
+
     ClassAttendanceRequest:
       type: object
       additionalProperties: false
-      required: [member_ids]
+      required: [marks]
       properties:
-        member_ids:
+        marks:
           type: array
           items:
-            type: string
-            format: uuid
+            type: object
+            additionalProperties: false
+            required: [member_id, status]
+            properties:
+              member_id:
+                type: string
+                format: uuid
+              status:
+                type: string
+                enum: [attended, no_show]
+
+    # ─── Trainer request schemas ─────────────────────────────────────────────
     TrainerProfilePatchRequest:
       type: object
       additionalProperties: false
@@ -6066,6 +6411,9 @@ components:
           type: array
           items:
             type: string
+        is_public:
+          type: boolean
+
     AssignClientRequest:
       type: object
       additionalProperties: false
@@ -6074,9 +6422,48 @@ components:
         member_id:
           type: string
           format: uuid
+
     AvailabilityRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      required: [windows]
+      properties:
+        windows:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [weekday, start_time, end_time]
+            properties:
+              weekday:
+                type: integer
+                minimum: 1
+                maximum: 7
+              start_time:
+                type: string
+                pattern: '^\d{2}:\d{2}$'
+              end_time:
+                type: string
+                pattern: '^\d{2}:\d{2}$'
+        exceptions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [date, available]
+            properties:
+              date:
+                type: string
+                format: date
+              available:
+                type: boolean
+              start_time:
+                type: string
+                pattern: '^\d{2}:\d{2}$'
+              end_time:
+                type: string
+                pattern: '^\d{2}:\d{2}$'
+
     PtSessionCreateRequest:
       type: object
       additionalProperties: false
@@ -6097,9 +6484,27 @@ components:
         branch_id:
           type: string
           format: uuid
+        notes:
+          type: string
+
     PtSessionPatchRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      properties:
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/PtSessionStatus'
+        notes:
+          type: string
+        cancel_reason:
+          type: string
+
+    # ─── Workout / progress request schemas ──────────────────────────────────
     ExerciseCreateRequest:
       type: object
       additionalProperties: false
@@ -6109,17 +6514,124 @@ components:
           type: string
         muscle_group:
           type: string
+        equipment:
+          type: string
         instructions:
           type: string
+        media_file_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
     ExercisePatchRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        muscle_group:
+          type: string
+        equipment:
+          type: string
+        instructions:
+          type: string
+        media_file_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        is_active:
+          type: boolean
+
     WorkoutPlanCreateRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        days:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [position, name]
+            properties:
+              position:
+                type: integer
+                minimum: 1
+              name:
+                type: string
+              items:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [exercise_id, sets]
+                  properties:
+                    exercise_id:
+                      type: string
+                      format: uuid
+                    sets:
+                      type: integer
+                      minimum: 1
+                    reps:
+                      type: integer
+                      minimum: 1
+                    duration_s:
+                      type: integer
+                      minimum: 1
+                    rest_s:
+                      type: integer
+                      minimum: 0
+                    notes:
+                      type: string
+
     WorkoutPlanPatchRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        days:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [position, name]
+            properties:
+              position:
+                type: integer
+                minimum: 1
+              name:
+                type: string
+              items:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [exercise_id, sets]
+                  properties:
+                    exercise_id:
+                      type: string
+                      format: uuid
+                    sets:
+                      type: integer
+                      minimum: 1
+                    reps:
+                      type: integer
+                    duration_s:
+                      type: integer
+                    rest_s:
+                      type: integer
+                    notes:
+                      type: string
+
     AssignWorkoutPlanRequest:
       type: object
       additionalProperties: false
@@ -6128,12 +6640,82 @@ components:
         workout_plan_id:
           type: string
           format: uuid
+
     WorkoutLogCreateRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      required: [performed_on]
+      properties:
+        performed_on:
+          type: string
+          format: date
+        plan_id:
+          type: string
+          format: uuid
+        duration_min:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+        entries:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [exercise_id, sets]
+            properties:
+              exercise_id:
+                type: string
+                format: uuid
+              sets:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    reps:
+                      type: integer
+                    weight_g:
+                      type: integer
+                    duration_s:
+                      type: integer
+                    distance_m:
+                      type: integer
+
     WorkoutLogPatchRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      properties:
+        duration_min:
+          type: integer
+          minimum: 1
+        notes:
+          type: string
+        entries:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [exercise_id, sets]
+            properties:
+              exercise_id:
+                type: string
+                format: uuid
+              sets:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    reps:
+                      type: integer
+                    weight_g:
+                      type: integer
+                    duration_s:
+                      type: integer
+                    distance_m:
+                      type: integer
+
     MeasurementCreateRequest:
       type: object
       additionalProperties: false
@@ -6144,14 +6726,81 @@ components:
           format: date
         weight_g:
           type: integer
+        height_mm:
+          type: integer
         body_fat_bp:
+          type: integer
+        chest_mm:
+          type: integer
+        waist_mm:
+          type: integer
+        hips_mm:
+          type: integer
+        arm_mm:
+          type: integer
+        thigh_mm:
           type: integer
         notes:
           type: string
+
     GoalsRequest:
       type: object
-      additionalProperties: true
+      additionalProperties: false
+      required: [goals]
+      properties:
+        goals:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [type, target_value, unit]
+            properties:
+              type:
+                $ref: '#/components/schemas/GoalType'
+              target_value:
+                type: number
+              unit:
+                type: string
+              target_date:
+                type: string
+                format: date
+              status:
+                $ref: '#/components/schemas/GoalStatus'
+              note:
+                type: string
+
+    ProgressPhotoCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [file_id, taken_on]
+      properties:
+        file_id:
+          type: string
+          format: uuid
+        taken_on:
+          type: string
+          format: date
+        pose:
+          type: string
+          enum: [front, side, back, other]
+        note:
+          type: string
+
+    # ─── Notifications ───────────────────────────────────────────────────────
     PushSubscribeRequest:
       type: object
-      additionalProperties: true
-
+      additionalProperties: false
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        keys:
+          type: object
+          additionalProperties: false
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+            auth:
+              type: string
