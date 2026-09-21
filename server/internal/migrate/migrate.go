@@ -49,7 +49,7 @@ func Up(ctx context.Context, databaseURL string) error {
 
 func Down(ctx context.Context, databaseURL string) error {
 	return withProvider(ctx, databaseURL, func(ctx context.Context, p *goose.Provider) error {
-		_, err := p.Down(ctx)
+		_, err := p.DownTo(ctx, 0)
 		return err
 	})
 }
