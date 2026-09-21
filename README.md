@@ -2,7 +2,18 @@
 
 Self-hostable gym management. The Go server is a plain process. PostgreSQL 16 runs natively on the host. There is no Docker in this repository.
 
-## Local setup (Fedora)
+## Requirements
+
+- Go 1.26+
+- PostgreSQL 16+
+- Node.js 20+ and npm (for the frontend projects)
+- `make`
+
+GymPulse does not use Docker. PostgreSQL runs natively on the host.
+
+## PostgreSQL setup
+
+### Fedora
 
 Install and start PostgreSQL 16+:
 
@@ -13,6 +24,31 @@ sudo systemctl enable --now postgresql
 ```
 
 Fedora's default `pg_hba.conf` often uses `ident` for local TCP. Password auth from `localhost` needs `scram-sha-256`. Edit `/var/lib/pgsql/data/pg_hba.conf` (path may vary) and change `host` lines for `127.0.0.1/32` and `::1/128` from `ident` or `peer` to `scram-sha-256`, then `sudo systemctl reload postgresql`.
+
+### Ubuntu/Debian
+
+```bash
+sudo apt update
+sudo apt install postgresql postgresql-client
+sudo systemctl enable --now postgresql
+```
+
+The configuration is normally under `/etc/postgresql/16/main/`. Update `pg_hba.conf` so local TCP connections use `scram-sha-256`, then run:
+
+```bash
+sudo systemctl reload postgresql
+```
+
+### macOS
+
+Install PostgreSQL 16 with Homebrew:
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+```
+
+Use the same role and database commands below. Windows users should install PostgreSQL 16 from the official installer, ensure the PostgreSQL service is running, and use the same SQL and `.env` configuration.
 
 Create the role once (superuser / postgres OS user). The application role needs `CREATEDB` so `make db-create` and tests can create databases:
 
@@ -42,6 +78,19 @@ make migrate-up
 make dev          # go run ./cmd/gympulse with .env loaded
 ```
 
+For a fresh database, the complete backend bootstrap is:
+
+```bash
+cp .env.example .env
+# Set DATABASE_URL and TEST_DATABASE_URL in .env.
+make generate
+make db-create
+make migrate-up
+make build
+make lint
+make test
+```
+
 `GET /health` is liveness (no DB). `GET /ready` pings Postgres. If readiness fails, the process logs the underlying error at warn; the HTTP body stays `{ "status": "not_ready" }`.
 
 Other targets: `make run` (built `server/bin/gympulse`), `make lint`, `make test`, `make build`, `make migrate-down`, `make migrate-status`.
@@ -57,6 +106,22 @@ make test
 ```
 
 If `TEST_DATABASE_URL` is unset, DB tests fail with a message explaining how to set it. Each DB test creates a `gympulse_test_*` database, applies embedded migrations, and drops it on cleanup. Idle leftover `gympulse_test_*` databases from crashed runs are dropped first.
+
+## Frontend projects
+
+The repository contains three independent Vite applications:
+
+```bash
+cd admin && npm install && npm run dev
+cd app && npm install && npm run dev
+cd landing && npm install && npm run dev
+```
+
+Use `npm run build` in each project for a production build and `npm run preview` to preview that build. The frontend projects currently use Vue 3 + TypeScript + Vite. The Go server remains the only database client.
+
+## OpenSpec
+
+Product work is tracked in `openspec/`. Completed changes are stored under `openspec/changes/archive/`; `openspec/specs/` contains the current product specifications. There are currently no active changes.
 
 ## Production
 
