@@ -99,4 +99,4 @@ DROP TABLE IF EXISTS leads;
 DROP TABLE IF EXISTS membership_events;
 DROP TABLE IF EXISTS memberships;
 DROP TABLE IF EXISTS membership_plans;
-DROP TABLE IF EXISTS members;
+DROP TABLE IF EXISTS members;gympulse
