@@ -15,6 +15,7 @@ import (
 	"gympulse-server/internal/db"
 	httpserver "gympulse-server/internal/http"
 	"gympulse-server/internal/migrate"
+	"gympulse-server/internal/seed"
 )
 
 func main() {
@@ -60,6 +61,17 @@ func runCLI(args []string) error {
 			return errors.New("usage: gympulse db create")
 		}
 		return db.CreateIfMissing(ctx, cfg.DatabaseURL)
+	case "seed":
+		pool, err := db.NewPool(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		defer pool.Close()
+		if err := seed.Run(ctx, pool); err != nil {
+			return err
+		}
+		fmt.Println("Seeded demo users (password: " + seed.DefaultPassword + "). See users.md.")
+		return nil
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}

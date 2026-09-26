@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -44,21 +46,25 @@ func hashPassword(password string) string {
 }
 
 func verifyPassword(password, encoded string) bool {
-	var s, h string
-	var m, t, p uint32
-	if _, err := fmt.Sscanf(encoded, "$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", &m, &t, &p, &s, &h); err != nil {
+	// $argon2id$v=19$m=65536,t=1,p=4$<salt>$<hash>
+	parts := strings.Split(encoded, "$")
+	if len(parts) != 6 || parts[1] != "argon2id" {
 		return false
 	}
-	salt, err := base64.RawStdEncoding.DecodeString(s)
+	var m, t, p uint32
+	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &m, &t, &p); err != nil {
+		return false
+	}
+	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
 		return false
 	}
-	want, err := base64.RawStdEncoding.DecodeString(h)
+	want, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
 		return false
 	}
 	got := argon2.IDKey([]byte(password), salt, t, m, uint8(p), uint32(len(want)))
-	return string(got) == string(want)
+	return subtle.ConstantTimeCompare(got, want) == 1
 }
 
 func tokenHash(token string) []byte { h := sha256.Sum256([]byte(token)); return h[:] }
@@ -111,6 +117,7 @@ func (a *apiImpl) summary(ctx context.Context, id uuid.UUID) (api.UserSummary, [
 		s.StaffRoles = append(s.StaffRoles, api.Role(r))
 	}
 	s.HasMemberProfile = false
+	_ = a.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM members WHERE user_id=$1 AND status='active')`, id).Scan(&s.HasMemberProfile)
 	return s, makeRoles(s.StaffRoles), rows.Err()
 }
 func makeRoles(r []api.Role) []string {
@@ -139,7 +146,7 @@ func (a *apiImpl) PostAuthLogin(ctx context.Context, req api.PostAuthLoginReques
 	if req.Body == nil {
 		return nil, errors.New("missing body")
 	}
-	key := string(req.Body.Email)
+	key := strings.ToLower(string(req.Body.Email))
 	now := time.Now()
 	a.rateMu.Lock()
 	if a.rate == nil {
@@ -151,18 +158,24 @@ func (a *apiImpl) PostAuthLogin(ctx context.Context, req api.PostAuthLoginReques
 			recent = append(recent, t)
 		}
 	}
-	a.rate[key] = append(recent, now)
-	limited := len(a.rate[key]) > 10
+	a.rate[key] = recent
+	limited := len(recent) >= 10
 	a.rateMu.Unlock()
 	if limited {
-		return api.PostAuthLogin429JSONResponse(api.ErrorEnvelope{}), nil
+		return api.PostAuthLogin429JSONResponse(authErr("rate_limited", "Too many login attempts. Wait a minute and try again.")), nil
 	}
 	var id, gym uuid.UUID
 	var hash string
 	err := a.pool.QueryRow(ctx, `SELECT id,gym_id,password_hash FROM users WHERE lower(email)=lower($1) AND deactivated_at IS NULL`, req.Body.Email).Scan(&id, &gym, &hash)
 	if err != nil || !verifyPassword(req.Body.Password, hash) {
-		return api.PostAuthLogin401JSONResponse(api.ErrorEnvelope{}), nil
+		a.rateMu.Lock()
+		a.rate[key] = append(a.rate[key], now)
+		a.rateMu.Unlock()
+		return api.PostAuthLogin401JSONResponse(authErr("invalid_credentials", "Invalid email or password.")), nil
 	}
+	a.rateMu.Lock()
+	delete(a.rate, key)
+	a.rateMu.Unlock()
 	s, roles, err := a.summary(ctx, id)
 	if err != nil {
 		return nil, err
@@ -181,6 +194,13 @@ func (a *apiImpl) PostAuthLogin(ctx context.Context, req api.PostAuthLoginReques
 	}
 	cookie := a.refreshCookie(refresh, 2592000).String()
 	return api.PostAuthLogin200JSONResponse{Body: api.LoginResponse{AccessToken: access, ExpiresIn: ptr(900), RefreshToken: &refresh, User: s}, Headers: api.PostAuthLogin200ResponseHeaders{SetCookie: &cookie}}, nil
+}
+
+func authErr(code, message string) api.ErrorEnvelope {
+	var e api.ErrorEnvelope
+	e.Error.Code = code
+	e.Error.Message = message
+	return e
 }
 
 func (a *apiImpl) refreshCookie(value string, maxAge int) *http.Cookie {

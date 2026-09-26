@@ -4,16 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
@@ -64,7 +68,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func newRouter(log *slog.Logger, impl *apiImpl) (http.Handler, error) {
-	swagger, err := api.GetSwagger()
+	// Prefer the full repo openapi.yaml so domain routes (sessions, invoices, …)
+	// validate and fall through to domainFallback when not yet code-generated.
+	swagger, err := loadValidatorSwagger()
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +82,21 @@ func newRouter(log *slog.Logger, impl *apiImpl) (http.Handler, error) {
 	r.Use(corsAndCSRF())
 	r.Use(nethttpmiddleware.OapiRequestValidatorWithOptions(swagger, &nethttpmiddleware.Options{
 		SilenceServersWarning: true,
+		Options: openapi3filter.Options{
+			AuthenticationFunc: func(_ context.Context, input *openapi3filter.AuthenticationInput) error {
+				if input.SecuritySchemeName != "bearerAuth" {
+					return fmt.Errorf("unsupported security scheme %q", input.SecuritySchemeName)
+				}
+				h := input.RequestValidationInput.Request.Header.Get("Authorization")
+				if len(h) < 8 || !strings.EqualFold(h[:7], "Bearer ") {
+					return errors.New("missing bearer token")
+				}
+				if _, err := parseAccess(h[7:], impl.secret()); err != nil {
+					return err
+				}
+				return nil
+			},
+		},
 		ErrorHandler: func(w http.ResponseWriter, message string, statusCode int) {
 			writeError(w, statusCode, "validation_error", message, nil)
 		},
@@ -88,6 +109,40 @@ func newRouter(log *slog.Logger, impl *apiImpl) (http.Handler, error) {
 	// authenticated domain fallback rather than silently returning a 501.
 	r.NotFound(impl.domainFallback)
 	return r, nil
+}
+
+func loadValidatorSwagger() (*openapi3.T, error) {
+	candidates := []string{
+		os.Getenv("OPENAPI_PATH"),
+		"openapi.yaml",
+		filepath.Join("..", "openapi.yaml"),
+		filepath.Join("..", "..", "openapi.yaml"),
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		candidates = append(candidates,
+			filepath.Join(dir, "openapi.yaml"),
+			filepath.Join(dir, "..", "openapi.yaml"),
+			filepath.Join(dir, "..", "..", "openapi.yaml"),
+		)
+	}
+	loader := openapi3.NewLoader()
+	loader.IsExternalRefsAllowed = true
+	for _, p := range candidates {
+		if p == "" {
+			continue
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		doc, err := loader.LoadFromData(data)
+		if err != nil {
+			return nil, fmt.Errorf("load openapi %s: %w", p, err)
+		}
+		return doc, nil
+	}
+	return api.GetSwagger()
 }
 
 func authContext(impl *apiImpl) func(http.Handler) http.Handler {
