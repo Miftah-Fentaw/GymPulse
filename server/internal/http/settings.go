@@ -73,7 +73,9 @@ func (a *apiImpl) ListAuditEvents(ctx context.Context, _ api.ListAuditEventsRequ
 	return api.ListAuditEvents200JSONResponse{Items: items}, nil
 }
 func (a *apiImpl) ListBranches(ctx context.Context, _ api.ListBranchesRequestObject) (api.ListBranchesResponseObject, error) {
-	gym, ok := a.authManager(ctx)
+	// Spec: authenticated staff/members need branch lists for check-in and forms.
+	// Create/patch/archive remain manager-gated.
+	gym, ok := a.authGym(ctx)
 	if !ok {
 		return api.ListBranches401JSONResponse(api.ErrorEnvelope{}), nil
 	}

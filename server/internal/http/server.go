@@ -178,7 +178,7 @@ func corsAndCSRF() func(http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 				w.Header().Set("Vary", "Origin")
-				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-GymPulse-Client")
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, Idempotency-Key, X-GymPulse-Client")
 				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS")
 			}
 			if r.Method == http.MethodOptions {
