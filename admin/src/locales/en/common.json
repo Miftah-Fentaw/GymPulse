@@ -1,0 +1,156 @@
+{
+  "app": {
+    "name": "GymPulse",
+    "tagline": "Train hard, turn up, run your best!"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "members": "Members",
+    "plans": "Plans",
+    "checkin": "Check-in",
+    "billing": "Billing",
+    "leads": "Leads",
+    "classes": "Classes",
+    "trainers": "Trainers",
+    "reports": "Reports",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "auth": {
+    "log": "Log",
+    "in": "in",
+    "email": "Email address",
+    "emailPlaceholder": "you@gym.com",
+    "password": "Password",
+    "remember": "Remember me",
+    "submit": "Log in",
+    "failed": "Sign-in failed. Check your email and password.",
+    "forbidden": "This account cannot access the admin app.",
+    "loading": "Signing in…",
+    "brandBody": "Run memberships, check-ins, billing, and the front desk from one staff console."
+  },
+  "header": {
+    "hi": "Hi {{name}}!",
+    "search": "Search anything here…",
+    "notifications": "Notifications"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "activeMembers": "Active members",
+    "checkinsToday": "Check-ins today",
+    "openLeads": "Open leads",
+    "overdue": "Overdue invoices",
+    "goalProcess": "Weekly activity",
+    "todayGoal": "Today focus",
+    "buildMuscles": "Front desk",
+    "recommended": "Quick actions",
+    "appointments": "Upcoming classes",
+    "todo": "To-do list",
+    "viewMore": "View more",
+    "profile": "Profile",
+    "edit": "Edit",
+    "calendar": "Calendar",
+    "gymNear": "Your gym",
+    "premiumTitle": "Grow your gym",
+    "premiumBody": "Keep members current, convert leads, and cash up every night.",
+    "subscribe": "Open leads"
+  },
+  "members": {
+    "title": "Members",
+    "add": "Add member",
+    "search": "Search name, email, code…",
+    "empty": "No members yet.",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "branch": "Home branch",
+    "status": "Status",
+    "save": "Save member",
+    "archive": "Archive",
+    "restore": "Restore",
+    "notes": "Notes",
+    "addNote": "Add note",
+    "memberships": "Memberships",
+    "assignPlan": "Assign plan"
+  },
+  "plans": {
+    "title": "Plans",
+    "add": "Add plan",
+    "name": "Name",
+    "price": "Price (minor units)",
+    "period": "Period unit",
+    "durationCount": "Duration count",
+    "save": "Save plan",
+    "empty": "No plans yet."
+  },
+  "checkin": {
+    "title": "Check-in",
+    "search": "Member id or code",
+    "submit": "Check in",
+    "today": "Today’s attendance",
+    "present": "Currently present",
+    "when": "When",
+    "empty": "No check-ins yet today."
+  },
+  "billing": {
+    "title": "Billing",
+    "overdue": "Overdue",
+    "cashUp": "Cash-up today",
+    "invoices": "Invoices",
+    "pay": "Record payment",
+    "amount": "Amount (minor units)",
+    "method": "Method",
+    "invoiceId": "Invoice id",
+    "empty": "No invoices found."
+  },
+  "leads": {
+    "title": "Leads",
+    "convert": "Convert",
+    "empty": "No leads yet.",
+    "contact": "Contact",
+    "status": "Status",
+    "message": "Message"
+  },
+  "classes": {
+    "title": "Classes",
+    "sessions": "Sessions",
+    "empty": "No sessions scheduled."
+  },
+  "trainers": {
+    "title": "Trainers",
+    "empty": "No trainers listed.",
+    "clients": "Clients"
+  },
+  "reports": {
+    "title": "Reports",
+    "active": "Active members",
+    "churn": "Churn",
+    "revenue": "Revenue",
+    "attendance": "Attendance",
+    "signups": "Signups",
+    "forbidden": "Reports are for owners and managers."
+  },
+  "settings": {
+    "title": "Settings",
+    "gym": "Gym",
+    "branches": "Branches",
+    "hours": "Business hours",
+    "holidays": "Holidays",
+    "save": "Save changes",
+    "name": "Name",
+    "timezone": "Timezone",
+    "currency": "Currency",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "create": "Create",
+    "actions": "Actions",
+    "none": "—"
+  }
+}
