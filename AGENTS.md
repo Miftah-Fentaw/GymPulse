@@ -14,7 +14,7 @@ Self-hostable gym management. Spec-driven with OpenSpec.
 - `server/` (Go) is the only database client. Authorization is enforced in Go.
 - Frontends talk only to the REST API via `packages/api-client` (from `openapi.yaml`).
 - PostgreSQL 16+, default schema, single `DATABASE_URL`, UUIDv7 in Go.
-- admin/app: React + Vite. landing: Astro with React islands.
+- admin/app: React + Vite. landing: Vue 3 + Vite (SEO shell at build).
 - Backend first. Local run: `make generate && make db-create && make migrate-up && make dev`.
 
 ## OpenSpec commands
