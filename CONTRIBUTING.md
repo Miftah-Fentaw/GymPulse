@@ -8,7 +8,7 @@ By contributing, you agree that your contributions are licensed under the [BSD 2
 
 ## Before you start
 
-1. Read [README.md](README.md) for local setup.
+1. Read [README.md](README.md) for local setup and [docs/](docs/README.md) for deep guides (tech stack, architecture, how-to, OpenSpec).
 2. Read [AGENTS.md](AGENTS.md) and `openspec/config.yaml` for architecture rules.
 3. Skim current specs under `openspec/specs/`.
 
