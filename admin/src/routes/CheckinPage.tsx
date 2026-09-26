@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, getSession } from "@/lib/auth";
 import { asRecord, str } from "@/lib/utils";
@@ -32,7 +32,8 @@ export function CheckinPage() {
   const branches = useQuery({
     queryKey: ["branches"],
     queryFn: async () => {
-      const { data } = await api.GET("/v1/branches");
+      const { data, error } = await api.GET("/v1/branches");
+      if (error) throw new Error("Failed to load branches");
       return (Array.isArray(data) ? data : (data as { items?: unknown[] })?.items ?? []) as unknown[];
     },
   });
@@ -87,8 +88,18 @@ export function CheckinPage() {
   });
   const memberOpts = (members.data ?? []).map((m) => {
     const row = asRecord(m);
-    return { id: str(row.id, ""), name: `${str(row.name)} (${str(row.email)})` };
+    return {
+      id: str(row.id, ""),
+      name: `${str(row.name)} (${str(row.email)})`,
+      branchId: str(row.branch_id, ""),
+    };
   });
+
+  useEffect(() => {
+    if (branchId || !branches.data || branches.data.length !== 1) return;
+    const id = str(asRecord(branches.data[0]).id, "");
+    if (id) setBranchId(id);
+  }, [branchId, branches.data]);
 
   const items = (today.data?.items ?? today.data ?? []) as unknown[];
   const presentItems = (present.data?.items ?? present.data ?? []) as unknown[];
@@ -122,11 +133,12 @@ export function CheckinPage() {
             </TextSelect>
           </Field>
           <div className="flex items-end">
-            <PrimaryButton type="submit" disabled={checkinQr.isPending}>
+            <PrimaryButton type="submit" disabled={checkinQr.isPending || !branchId}>
               {t("checkin.scanSubmit")}
             </PrimaryButton>
           </div>
         </form>
+        {branches.isError ? <p className="text-sm text-red-600">{String(branches.error)}</p> : null}
         {checkinQr.isError ? <p className="text-sm text-red-600">{String(checkinQr.error)}</p> : null}
         {checkinQr.isSuccess ? <p className="text-sm text-teal">{t("checkin.success")}</p> : null}
       </PageCard>
@@ -140,7 +152,16 @@ export function CheckinPage() {
           }}
         >
           <Field label={t("members.title")}>
-            <TextSelect required value={memberId} onChange={(e) => setMemberId(e.target.value)}>
+            <TextSelect
+              required
+              value={memberId}
+              onChange={(e) => {
+                const next = e.target.value;
+                setMemberId(next);
+                const home = memberOpts.find((m) => m.id === next)?.branchId;
+                if (home) setBranchId(home);
+              }}
+            >
               <option value="">Select</option>
               {memberOpts.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -160,7 +181,7 @@ export function CheckinPage() {
             </TextSelect>
           </Field>
           <div className="flex items-end">
-            <PrimaryButton type="submit" disabled={checkinStaff.isPending}>
+            <PrimaryButton type="submit" disabled={checkinStaff.isPending || !memberId || !branchId}>
               {t("checkin.submit")}
             </PrimaryButton>
           </div>
