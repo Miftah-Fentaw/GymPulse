@@ -4,6 +4,33 @@ Self-hostable gym management. The Go server is a plain process. PostgreSQL 16 ru
 
 **License:** [BSD 2-Clause](LICENSE) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
 
+## Screenshots
+
+### Admin dashboard
+
+<p>
+  <img src="docs/screenshots/admin-login.png" alt="Admin sign-in" width="48%" />
+  <img src="docs/screenshots/admin-dashboard.png" alt="Admin dashboard" width="48%" />
+</p>
+
+### Member & trainer PWA
+
+<p>
+  <img src="docs/screenshots/app-auth.png" alt="PWA sign-in" width="22%" />
+  <img src="docs/screenshots/app-home.png" alt="PWA home" width="22%" />
+  <img src="docs/screenshots/app-checkin.png" alt="PWA check-in QR" width="22%" />
+  <img src="docs/screenshots/app-profile.png" alt="PWA profile" width="22%" />
+</p>
+
+### Landing
+
+<p>
+  <img src="docs/screenshots/landing.png" alt="Landing page" width="48%" />
+  <img src="docs/screenshots/landing-alt.png" alt="Landing page (continued)" width="48%" />
+</p>
+
+Per-app READMEs: [admin](admin/README.md) · [app](app/README.md) · [landing](landing/README.md)
+
 ## Requirements
 
 - Go 1.26+
@@ -114,7 +141,7 @@ If `TEST_DATABASE_URL` is unset, DB tests fail with a message explaining how to 
 
 ## Frontend projects
 
-Each frontend is a separate package with its own `node_modules` (no root JS workspace).
+Each frontend is a separate package with its own `node_modules` (no root JS workspace). Previews: [admin](admin/README.md), [app](app/README.md), [landing](landing/README.md).
 
 ```bash
 # API (terminal 1)

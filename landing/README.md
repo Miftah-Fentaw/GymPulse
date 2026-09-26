@@ -1,6 +1,13 @@
 # Landing
 
-Public marketing site matching `ui design inspiration images/landing page design.jpg`.
+Public marketing site for GymPulse.
+
+## Screenshots
+
+<p>
+  <img src="../docs/screenshots/landing.png" alt="Landing page" width="48%" />
+  <img src="../docs/screenshots/landing-alt.png" alt="Landing page (continued)" width="48%" />
+</p>
 
 ```bash
 cd landing
