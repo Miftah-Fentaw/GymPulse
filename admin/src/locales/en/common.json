@@ -5,6 +5,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "users": "Users",
     "members": "Members",
     "plans": "Plans",
     "checkin": "Check-in",
@@ -22,9 +23,12 @@
     "email": "Email address",
     "emailPlaceholder": "you@gym.com",
     "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "remember": "Remember me",
     "submit": "Log in",
     "failed": "Sign-in failed. Check your email and password.",
+    "rateLimited": "Too many login attempts. Wait about a minute, then try again.",
     "forbidden": "This account cannot access the admin app.",
     "loading": "Signing in…",
     "brandBody": "Run memberships, check-ins, billing, and the front desk from one staff console."
@@ -84,7 +88,12 @@
     "empty": "No plans yet."
   },
   "checkin": {
-    "title": "Check-in",
+    "title": "Staff check-in",
+    "qrTitle": "QR / token check-in",
+    "token": "Member QR token",
+    "tokenHint": "Paste scanned token from member app",
+    "scanSubmit": "Check in with QR",
+    "success": "Check-in recorded.",
     "search": "Member id or code",
     "submit": "Check in",
     "today": "Today’s attendance",
@@ -101,7 +110,13 @@
     "amount": "Amount (minor units)",
     "method": "Method",
     "invoiceId": "Invoice id",
-    "empty": "No invoices found."
+    "empty": "No invoices found.",
+    "pendingReview": "Pending screenshot payments",
+    "noPending": "No payments waiting for review.",
+    "approve": "Approve",
+    "reject": "Reject",
+    "rejectReason": "Reject reason (used when rejecting)",
+    "viewEvidence": "View screenshot"
   },
   "leads": {
     "title": "Leads",
@@ -143,6 +158,32 @@
     "phone": "Phone",
     "email": "Email",
     "address": "Address"
+  },
+  "users": {
+    "title": "Users",
+    "subtitle": "Manage all account types for this gym. Owner access only.",
+    "ownerOnly": "Only an owner can open the Users screen.",
+    "search": "Search users…",
+    "invite": "Invite",
+    "sendInvite": "Send invite",
+    "cancel": "Cancel",
+    "inviteFailed": "Invite failed. Check the email and try again.",
+    "empty": "No users in this tab yet.",
+    "email": "Email",
+    "name": "Name",
+    "role": "Role",
+    "roles": "Roles",
+    "code": "Member code",
+    "status": "Status",
+    "id": "ID",
+    "deactivate": "Deactivate",
+    "tabs": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "receptionist": "Receptionist",
+      "trainer": "Trainer",
+      "member": "Member"
+    }
   },
   "common": {
     "loading": "Loading…",

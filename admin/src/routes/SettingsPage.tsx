@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@/lib/auth";
+import { api, getSession } from "@/lib/auth";
 import { asRecord, str } from "@/lib/utils";
 import { Field, PageCard, PrimaryButton, SoftTable, TextInput } from "@/components/ui";
+
+const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -29,6 +31,32 @@ export function SettingsPage() {
     queryFn: async () => {
       const { data } = await api.GET("/v1/branches");
       return (Array.isArray(data) ? data : (data as { items?: unknown[] })?.items ?? []) as unknown[];
+    },
+  });
+  const hours = useQuery({
+    queryKey: ["hours", branches.data],
+    enabled: (branches.data ?? []).length > 0,
+    queryFn: async () => {
+      const first = asRecord((branches.data ?? [])[0]);
+      const id = str(first.id, "");
+      if (!id) return { items: [] as unknown[] };
+      const token = getSession().accessToken;
+      const res = await fetch(`/v1/branches/${id}/hours`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return { items: [] as unknown[] };
+      return (await res.json()) as { items?: unknown[] };
+    },
+  });
+  const holidays = useQuery({
+    queryKey: ["holidays"],
+    queryFn: async () => {
+      const token = getSession().accessToken;
+      const res = await fetch("/v1/gym/holidays", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return { items: [] as unknown[] };
+      return (await res.json()) as { items?: unknown[] };
     },
   });
 
@@ -60,6 +88,9 @@ export function SettingsPage() {
     },
     onSuccess: async () => qc.invalidateQueries({ queryKey: ["gym"] }),
   });
+
+  const hourItems = hours.data?.items ?? [];
+  const holidayItems = holidays.data?.items ?? [];
 
   return (
     <div className="space-y-4">
@@ -105,6 +136,35 @@ export function SettingsPage() {
             return [str(row.name), str(row.address), str(row.phone)];
           })}
         />
+      </PageCard>
+
+      <PageCard title="Branch hours">
+        {hourItems.length === 0 ? (
+          <p className="text-sm text-muted">{t("common.none")}</p>
+        ) : (
+          <SoftTable
+            headers={["Day", "Opens", "Closes"]}
+            rows={hourItems.map((h) => {
+              const row = asRecord(h);
+              const day = Number(row.weekday ?? 1);
+              return [weekdays[day - 1] ?? String(day), str(row.opens_at), str(row.closes_at)];
+            })}
+          />
+        )}
+      </PageCard>
+
+      <PageCard title="Holidays">
+        {holidayItems.length === 0 ? (
+          <p className="text-sm text-muted">{t("common.none")}</p>
+        ) : (
+          <SoftTable
+            headers={["Date", "Name"]}
+            rows={holidayItems.map((h) => {
+              const row = asRecord(h);
+              return [str(row.date), str(row.name)];
+            })}
+          />
+        )}
       </PageCard>
     </div>
   );

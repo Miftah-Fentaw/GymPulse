@@ -47,28 +47,32 @@ export function AppShell() {
   const showRight = path === "/" || path === "";
 
   return (
-    <div className="min-h-screen bg-surface p-4 md:p-6">
-      <div className="mx-auto flex max-w-[1500px] gap-5">
-        <div className="sticky top-6 hidden h-[calc(100vh-3rem)] lg:block">
-          <Sidebar />
+    <div className="flex min-h-screen bg-surface">
+      <aside className="sticky top-0 hidden h-dvh shrink-0 lg:block">
+        <Sidebar />
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="border-b border-line bg-white p-3 lg:hidden">
+          <Sidebar variant="drawer" />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="mb-4 lg:hidden">
-            <Sidebar />
+
+        <div className="flex min-w-0 flex-1 gap-5 p-4 md:p-6">
+          <div className="min-w-0 flex-1">
+            <TopBar search={search} onSearch={setSearch} />
+            <Outlet />
           </div>
-          <TopBar search={search} onSearch={setSearch} />
-          <Outlet />
+          {showRight ? (
+            <div className="sticky top-6 hidden h-[calc(100vh-3rem)] shrink-0 overflow-auto xl:block">
+              <RightRail
+                gymName={str(asRecord(gym.data).name, "") || undefined}
+                overdueCount={(overdue.data?.items ?? []).length}
+                checkinCount={(checkins.data?.items ?? []).length}
+                branchCount={(branches.data ?? []).length}
+              />
+            </div>
+          ) : null}
         </div>
-        {showRight ? (
-          <div className="sticky top-6 hidden h-[calc(100vh-3rem)] overflow-auto xl:block">
-            <RightRail
-              gymName={str(asRecord(gym.data).name, "") || undefined}
-              overdueCount={(overdue.data?.items ?? []).length}
-              checkinCount={(checkins.data?.items ?? []).length}
-              branchCount={(branches.data ?? []).length}
-            />
-          </div>
-        ) : null}
       </div>
     </div>
   );

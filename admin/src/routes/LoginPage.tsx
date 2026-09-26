@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { Eye, EyeOff } from "lucide-react";
 import { login } from "@/lib/auth";
 
 const REMEMBER_KEY = "gp_admin_remember_email";
 
 export function LoginPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -28,10 +32,13 @@ export function LoginPage() {
     else localStorage.removeItem(REMEMBER_KEY);
     try {
       await login(email, password);
+      // Replace so Back does not return to the login form.
+      await navigate({ to: "/", replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "failed";
-      setError(message === "forbidden" ? t("auth.forbidden") : t("auth.failed"));
-    } finally {
+      if (message === "forbidden") setError(t("auth.forbidden"));
+      else if (message === "rate_limited") setError(t("auth.rateLimited"));
+      else setError(t("auth.failed"));
       setPending(false);
     }
   }
@@ -62,17 +69,28 @@ export function LoginPage() {
               />
             </label>
 
-            <label className="block">
+            <div className="block">
               <span className="mb-2 block text-sm font-semibold text-[#1a2b5c]">{t("auth.password")}</span>
-              <input
-                required
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(ev) => setPassword(ev.target.value)}
-                className="auth-input auth-input--password"
-              />
-            </label>
+              <div className="auth-password">
+                <input
+                  required
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(ev) => setPassword(ev.target.value)}
+                  className="auth-input auth-input--password"
+                />
+                <button
+                  type="button"
+                  className="auth-password__toggle"
+                  aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((v) => !v)}
+                >
+                  {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+                </button>
+              </div>
+            </div>
 
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#1a2b5c]">
               <input

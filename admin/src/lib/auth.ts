@@ -42,6 +42,10 @@ export function isStaff(user: UserSummary | null | undefined) {
   return (user?.staff_roles ?? []).some((r) => STAFF_ROLES.has(r));
 }
 
+export function isOwner(user: UserSummary | null | undefined) {
+  return (user?.staff_roles ?? []).includes("owner");
+}
+
 export function setSession(next: Partial<SessionState>) {
   if (next.accessToken !== undefined) state.accessToken = next.accessToken;
   if (next.refreshToken !== undefined) {
@@ -68,7 +72,9 @@ export async function login(email: string, password: string) {
     body: { email, password },
   });
   if (error || !data) {
-    throw new Error(response.status === 403 ? "forbidden" : "failed");
+    if (response.status === 429) throw new Error("rate_limited");
+    if (response.status === 403) throw new Error("forbidden");
+    throw new Error("failed");
   }
   if (!isStaff(data.user as UserSummary)) {
     throw new Error("forbidden");
@@ -102,10 +108,13 @@ export async function refreshSession() {
 }
 
 export async function logout() {
+  // Drop local session first so navigation can feel instant.
+  // Refresh cookie is still sent via credentials: "include".
+  clearSession();
   try {
     await api.POST("/v1/auth/logout", {});
-  } finally {
-    clearSession();
+  } catch {
+    // Ignore network errors after local logout.
   }
 }
 

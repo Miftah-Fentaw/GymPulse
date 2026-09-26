@@ -9,6 +9,7 @@ import { useSyncExternalStore } from "react";
 import { AppShell } from "@/components/AppShell";
 import { LoginPage } from "@/routes/LoginPage";
 import { DashboardPage } from "@/routes/DashboardPage";
+import { UsersPage } from "@/routes/UsersPage";
 import { MembersPage } from "@/routes/MembersPage";
 import { PlansPage } from "@/routes/PlansPage";
 import { CheckinPage } from "@/routes/CheckinPage";
@@ -16,7 +17,7 @@ import { BillingPage } from "@/routes/BillingPage";
 import { LeadsPage } from "@/routes/LeadsPage";
 import { ClassesPage, ReportsPage, TrainersPage } from "@/routes/ClassesTrainersReports";
 import { SettingsPage } from "@/routes/SettingsPage";
-import { getSession, refreshSession, subscribeSession } from "@/lib/auth";
+import { getSession, isOwner, refreshSession, subscribeSession } from "@/lib/auth";
 
 function useSessionSnap() {
   return useSyncExternalStore(subscribeSession, getSession, getSession);
@@ -64,6 +65,16 @@ const dashboardRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/",
   component: DashboardPage,
+});
+const usersRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/users",
+  beforeLoad: () => {
+    if (!isOwner(getSession().user)) {
+      throw redirect({ to: "/" });
+    }
+  },
+  component: UsersPage,
 });
 const membersRoute = createRoute({
   getParentRoute: () => shellRoute,
@@ -115,6 +126,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   shellRoute.addChildren([
     dashboardRoute,
+    usersRoute,
     membersRoute,
     plansRoute,
     checkinRoute,

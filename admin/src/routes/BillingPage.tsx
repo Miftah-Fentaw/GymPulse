@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getSession } from "@/lib/auth";
 import { asRecord, money, str } from "@/lib/utils";
-import { Field, PageCard, PrimaryButton, SoftTable, TextInput, TextSelect } from "@/components/ui";
+import { Field, GhostButton, PageCard, PrimaryButton, SoftTable, TextInput, TextSelect } from "@/components/ui";
 
 async function domainFetch(path: string, init?: RequestInit) {
   const token = getSession().accessToken;
@@ -28,6 +28,7 @@ export function BillingPage() {
   const [invoiceId, setInvoiceId] = useState("");
   const [amount, setAmount] = useState("5000");
   const [method, setMethod] = useState("cash");
+  const [rejectReason, setRejectReason] = useState("");
 
   const invoices = useQuery({
     queryKey: ["invoices"],
@@ -40,6 +41,10 @@ export function BillingPage() {
   const cashUp = useQuery({
     queryKey: ["cash-up"],
     queryFn: () => domainFetch("/v1/billing/cash-up"),
+  });
+  const pending = useQuery({
+    queryKey: ["pending-payments"],
+    queryFn: () => domainFetch("/v1/payments?status=pending"),
   });
 
   const pay = useMutation({
@@ -57,12 +62,86 @@ export function BillingPage() {
     },
   });
 
+  const review = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
+      await domainFetch(`/v1/payments/${id}/review`, {
+        method: "POST",
+        body: JSON.stringify({ status, reason: status === "rejected" ? rejectReason || "Rejected" : "" }),
+      });
+    },
+    onSuccess: async () => {
+      setRejectReason("");
+      await qc.invalidateQueries({ queryKey: ["pending-payments"] });
+      await qc.invalidateQueries({ queryKey: ["invoices"] });
+      await qc.invalidateQueries({ queryKey: ["cash-up"] });
+      await qc.invalidateQueries({ queryKey: ["overdue"] });
+    },
+  });
+
   const invoiceItems = (invoices.data?.items ?? invoices.data ?? []) as unknown[];
   const overdueItems = (overdue.data?.items ?? overdue.data ?? []) as unknown[];
+  const pendingItems = (pending.data?.items ?? []) as unknown[];
   const cash = asRecord(cashUp.data);
 
   return (
     <div className="space-y-4">
+      <PageCard title={t("billing.pendingReview")}>
+        {pendingItems.length === 0 ? (
+          <p className="text-sm text-muted">{t("billing.noPending")}</p>
+        ) : (
+          <div className="space-y-3">
+            {pendingItems.map((item) => {
+              const row = asRecord(item);
+              const id = str(row.id, "");
+              const evidence = str(row.evidence_file_id, "");
+              return (
+                <div key={id} className="rounded-2xl bg-peach/40 px-4 py-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-ink">
+                        {str(row.member_name)} · {str(row.provider || row.method)}
+                      </div>
+                      <div className="mt-1 text-sm text-muted">
+                        {money(Number(row.amount_minor ?? 0))} · {str(row.reference)}
+                      </div>
+                      {evidence ? (
+                        <a
+                          className="mt-1 inline-block text-sm font-semibold text-teal"
+                          href={`/v1/files/${evidence}/content`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {t("billing.viewEvidence")}
+                        </a>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <PrimaryButton
+                        type="button"
+                        disabled={review.isPending}
+                        onClick={() => review.mutate({ id, status: "approved" })}
+                      >
+                        {t("billing.approve")}
+                      </PrimaryButton>
+                      <GhostButton
+                        type="button"
+                        disabled={review.isPending}
+                        onClick={() => review.mutate({ id, status: "rejected" })}
+                      >
+                        {t("billing.reject")}
+                      </GhostButton>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <Field label={t("billing.rejectReason")}>
+              <TextInput value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+            </Field>
+          </div>
+        )}
+      </PageCard>
+
       <div className="grid gap-4 md:grid-cols-2">
         <PageCard title={t("billing.overdue")}>
           {overdueItems.length === 0 ? (
@@ -74,9 +153,9 @@ export function BillingPage() {
                 return (
                   <li key={i} className="flex justify-between rounded-2xl bg-peach/50 px-4 py-3 text-sm">
                     <button type="button" className="font-semibold" onClick={() => setInvoiceId(str(row.id, ""))}>
-                      {str(row.id).slice(0, 8)}…
+                      {str(row.invoice_number ?? row.member_name ?? row.id).slice(0, 24)}
                     </button>
-                    <span>{money(Number(row.total_minor ?? 0))}</span>
+                    <span>{money(Number(row.balance_minor ?? row.total_minor ?? 0))}</span>
                   </li>
                 );
               })}
@@ -85,7 +164,7 @@ export function BillingPage() {
         </PageCard>
         <PageCard title={t("billing.cashUp")}>
           <div className="grid grid-cols-3 gap-3">
-            {["cash", "bank_transfer", "mobile_money"].map((m) => (
+            {["cash", "bank", "mobile_money"].map((m) => (
               <div key={m} className="rounded-2xl bg-mint/50 p-4 text-center">
                 <div className="text-xs font-semibold text-muted uppercase">{m}</div>
                 <div className="mt-2 text-lg font-bold">{money(Number(cash[m] ?? cash[`${m}_minor`] ?? 0))}</div>
@@ -112,7 +191,7 @@ export function BillingPage() {
           <Field label={t("billing.method")}>
             <TextSelect value={method} onChange={(e) => setMethod(e.target.value)}>
               <option value="cash">cash</option>
-              <option value="bank_transfer">bank_transfer</option>
+              <option value="bank">bank</option>
               <option value="mobile_money">mobile_money</option>
             </TextSelect>
           </Field>
@@ -140,9 +219,9 @@ export function BillingPage() {
                   className="font-semibold text-teal"
                   onClick={() => setInvoiceId(str(row.id, ""))}
                 >
-                  {str(row.id).slice(0, 8)}…
+                  {str(row.invoice_number, str(row.id).slice(0, 8))}
                 </button>,
-                str(row.member_id),
+                str(row.member_name ?? row.member_id),
                 str(row.status),
                 money(Number(row.total_minor ?? 0)),
               ];
