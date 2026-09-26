@@ -1,4 +1,4 @@
-.PHONY: dev run test lint generate build migrate-up migrate-down migrate-status db-create admin-dev admin-build
+.PHONY: dev run test lint generate build migrate-up migrate-down migrate-status db-create seed admin-dev admin-build
 
 with-env = bash -c 'set -a && [ -f "$(CURDIR)/.env" ] && . "$(CURDIR)/.env"; set +a && $(1)'
 
@@ -38,3 +38,6 @@ migrate-status:
 
 db-create:
 	$(call with-env,cd "$(CURDIR)/server" && go run ./cmd/gympulse db create)
+
+seed:
+	$(call with-env,cd "$(CURDIR)/server" && go run ./cmd/gympulse seed)
