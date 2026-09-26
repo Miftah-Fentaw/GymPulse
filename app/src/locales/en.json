@@ -1,0 +1,127 @@
+{
+  "brand": "GymPulse",
+  "nav": {
+    "home": "Home",
+    "explore": "Explore",
+    "schedule": "Schedule",
+    "checkin": "Check-in",
+    "billing": "Pay",
+    "profile": "Profile"
+  },
+  "welcome": {
+    "headline": "Fitness program that gets the result.",
+    "emailCta": "Sign In with Email",
+    "hasAccount": "Already have an account?",
+    "signInLink": "Sign in"
+  },
+  "auth": {
+    "signInTitle": "Sign In",
+    "signUpTitle": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "continue": "Continue",
+    "emailOnly": "Use your gym email and password.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "create": "Create account",
+    "signIn": "Sign in",
+    "failed": "Could not sign in. Check your credentials."
+  },
+  "home": {
+    "hello": "Hello {{name}},",
+    "tagline": "Stay Fit & Healthy",
+    "trending": "Trending Workouts",
+    "types": "Workout types",
+    "additional": "Additional training",
+    "seeAll": "See all",
+    "min": "{{count}} mins",
+    "level": "{{level}}"
+  },
+  "types": {
+    "strength": "Strength",
+    "yoga": "Yoga",
+    "cardio": "Cardio",
+    "hiit": "HIIT"
+  },
+  "explore": {
+    "title": "Explore",
+    "placeholder": "Search workouts or trainers",
+    "results": "Results",
+    "empty": "No matches"
+  },
+  "schedule": {
+    "title": "Schedule",
+    "reserve": "Reserve",
+    "upcoming": "Upcoming sessions",
+    "empty": "Nothing booked for this day"
+  },
+  "checkin": {
+    "title": "Check-in",
+    "hint": "Show this QR at the front desk. It refreshes automatically.",
+    "memberCode": "Member code",
+    "expires": "Expires {{at}}",
+    "error": "Could not load check-in QR. Check your membership."
+  },
+  "billing": {
+    "title": "Billing",
+    "invoices": "Your invoices",
+    "payments": "Payment history",
+    "emptyInvoices": "No invoices yet.",
+    "emptyPayments": "No payments yet.",
+    "payTitle": "Pay with screenshot",
+    "payHint": "Pay via Telebirr or CBE, then upload the receipt screenshot for the receptionist to verify.",
+    "provider": "Payment app",
+    "other": "Other",
+    "amount": "Amount (minor units)",
+    "reference": "Transaction reference",
+    "submit": "Submit for verification",
+    "submitted": "Submitted — waiting for front desk approval."
+  },
+  "profile": {
+    "title": "Profile",
+    "activities": "Activities",
+    "statistics": "Statistics",
+    "weight": "Weight",
+    "height": "Height",
+    "gender": "Gender",
+    "calories": "Calories",
+    "heart": "Heart Rate",
+    "steps": "Steps",
+    "weekly": "Weekly activity",
+    "logout": "Sign out",
+    "faq": "FAQ"
+  },
+  "workout": {
+    "burn": "Burn",
+    "duration": "Duration",
+    "kcal": "{{count}} kcal",
+    "mins": "{{count}} mins",
+    "follow": "Follow",
+    "browse": "Start",
+    "reserve": "Reserve",
+    "about": "About workout"
+  },
+  "trainer": {
+    "course": "Course",
+    "schedule": "Schedule",
+    "rating": "{{rating}} rating",
+    "pro": "Pro trainers",
+    "popular": "Popular trainers"
+  },
+  "faq": {
+    "title": "FAQ",
+    "q1": "How do I book a class?",
+    "a1": "Open Schedule, pick a day, then tap Reserve on an open session.",
+    "q2": "How do I check in?",
+    "a2": "Open Check-in and show the QR to reception. Offline, your last QR stays available.",
+    "q3": "How do I pay?",
+    "a3": "Open Pay, choose an invoice, pay with Telebirr or CBE, upload the screenshot, and wait for reception to approve."
+  },
+  "common": {
+    "back": "Back",
+    "loading": "Loading…"
+  }
+}
