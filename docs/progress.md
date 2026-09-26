@@ -41,3 +41,17 @@ Remaining endpoint groups are richer invoice/receipt/refund workflows,
 class-session and booking management, trainer/client and availability
 workflows, workout/progress CRUD and photos, signed file downloads, detailed
 report filters/exports, and public landing API behavior.
+
+## member-payments-attendance (archived 2026-09-26)
+
+Synced into main specs (`billing-payments`, `checkin-attendance`, `admin-dashboard`,
+`member-trainer-pwa`): screenshot evidence payments + staff review, member
+invoice/payment lists, PWA QR check-in, admin QR + billing review UI, email/password
+PWA auth (no social), rich seed. See `openspec/changes/archive/2026-09-26-member-payments-attendance/`.
+
+## member-pwa-ui (archived 2026-09-26)
+
+Synced into `member-trainer-pwa`: mobile bottom nav, tablet/desktop sidebar, design-kit
+surfaces with GymPulse brand red. See `openspec/changes/archive/2026-09-26-member-pwa-ui/`.
+
+Project docs expanded under `docs/` (tech-stack, architecture, howto, openspec).
