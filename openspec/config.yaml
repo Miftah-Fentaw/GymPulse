@@ -19,7 +19,7 @@ context: |
     server/              Go backend — single source of truth, owns the schema
     admin/               React + Vite staff dashboard
     app/                 React + Vite PWA (members and trainers)
-    landing/             Astro public site (React islands)
+    landing/             Vue + Vite public marketing site
     packages/api-client  Generated OpenAPI TypeScript client
     openapi.yaml         OpenAPI 3.1 source of truth for HTTP /v1
     Makefile             dev, run, test, lint, generate, build, migrate-*, db-create
@@ -119,10 +119,12 @@ context: |
   ## Frontend (locked)
 
   - admin, app: React + Vite + TypeScript SPAs.
-  - landing: Astro (static/hybrid) with React islands for live parts
-    (trial form, live schedule).
-  - Shared: Tailwind CSS, shadcn/ui, TanStack Query, TanStack Router,
+  - landing: Vue 3 + Vite marketing site with a static HTML SEO shell
+    (canonical/OG/JSON-LD, robots.txt, sitemap.xml via VITE_SITE_URL).
+    Live leads form and public schedule API binding may follow later.
+  - Shared (admin/app): Tailwind CSS, shadcn/ui, TanStack Query, TanStack Router,
     react-hook-form + zod, packages/api-client.
+  - landing packages are independent of the admin/app TanStack stack.
   - TanStack Router (not React Router): type-safe routes and search params
     that compose with zod and TanStack Query; one TanStack stack.
   - i18n: react-i18next, JSON catalogs, English default. No hard-coded UI
@@ -220,7 +222,7 @@ operations:
       - Build backend first; do not start frontend feature work until the matching server API exists
       - Update openapi.yaml for any new or changed HTTP endpoint, then make generate
       - PostgreSQL only; generate UUIDv7 in Go; argon2id; no DB mocks; local Postgres via TEST_DATABASE_URL
-      - React + Vite for admin/app; Astro + React islands for landing; i18n catalogs only
+      - React + Vite for admin/app; Vue + Vite for landing (SEO shell at build); i18n catalogs for admin/app
       - Follow the change order in project context
   archive:
     guidance:

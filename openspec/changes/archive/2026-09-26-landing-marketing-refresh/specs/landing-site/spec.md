@@ -2,7 +2,7 @@
 
 Public marketing website for a single deployed gym: brand-led home, plans, schedule highlights, contact, and trial CTAs, delivered as a Vue + Vite site with a crawlable SEO shell and no privileged API access.
 
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: SEO-oriented delivery
 The landing site SHALL ship a static HTML entry with crawlable document metadata (title, description, canonical URL, Open Graph, Twitter cards, and JSON-LD) resolved at build time from `VITE_SITE_URL`. The build MUST emit `robots.txt` and `sitemap.xml` for the public origin. Marketing sections MAY render via a client SPA after load; privileged data MUST NOT be required for the SEO shell.
@@ -40,11 +40,6 @@ The site SHALL provide a clear free-trial CTA and contact affordances (phone, em
 - **THEN** the server stores a lead
 - **AND** the visitor sees a success message
 
-#### Scenario: Invalid form
-- **WHEN** a visitor submits a wired form without required fields
-- **THEN** the request is not stored
-- **AND** the UI shows a validation error
-
 ### Requirement: No privileged API
 The landing site MUST NOT ship staff tokens or use credentialed auth cookies. Public API use SHALL be read-only except for a documented lead POST when a form is present.
 
@@ -54,11 +49,13 @@ The landing site MUST NOT ship staff tokens or use credentialed auth cookies. Pu
 - **AND** auth refresh cookies are not used on this origin
 
 ### Requirement: Localized UI
-All user-visible strings SHALL come from i18n catalogs when catalogs are introduced for landing. English is the default locale. Until catalogs exist, English marketing copy MAY live in the landing source as a temporary exception; a follow-up MUST move strings into catalogs.
+All user-visible strings SHALL come from i18n catalogs when catalogs are introduced for landing. English is the default locale. Until catalogs exist, English marketing copy MAY live in the landing source as a temporary exception documented by this change; a follow-up MUST move strings into catalogs.
 
 #### Scenario: English default
 - **WHEN** a visitor opens landing with no locale override
 - **THEN** visible copy is English
+
+## ADDED Requirements
 
 ### Requirement: Responsive marketing layout
 The landing site SHALL remain usable on tablet and phone widths: navigation collapses to a menu control, multi-column sections stack or scroll horizontally where needed, and primary CTAs remain reachable.
