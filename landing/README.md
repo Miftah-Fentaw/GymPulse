@@ -1,21 +1,28 @@
-# GymPulse Landing
+# Landing
 
-Public landing frontend for GymPulse. It is currently a Vue 3 + TypeScript + Vite application.
-
-## Development
+Public marketing site matching `ui design inspiration images/landing page design.jpg`.
 
 ```bash
-npm install
-npm run dev
+cd landing
+pnpm install
+cp .env.example .env   # set VITE_SITE_URL to your public origin
+pnpm run dev           # http://localhost:4321
+pnpm run build
 ```
 
-Public data is served by the Go API in `../server`; this project must not connect directly to PostgreSQL.
+## SEO
 
-## Build and preview
+Set `VITE_SITE_URL` (no trailing slash), e.g. `https://www.yourgym.com`. Build injects it into:
 
-```bash
-npm run build
-npm run preview
-```
+- Canonical, Open Graph, Twitter Card, and JSON-LD in `index.html`
+- `dist/robots.txt` and `dist/sitemap.xml`
 
-See the repository [README](../README.md) for PostgreSQL, API, and deployment setup.
+Assets used for sharing: `public/og-image.jpg` (1200+ wide), `public/logo.png`.
+
+## Page assets
+
+- Brand: `public/logo.png`
+- Hero athlete: `public/image1.png`
+- About athlete: `public/image2.png`
+- Hero video: `public/hero.mp4`
+- Other sections: `public/media/*`
