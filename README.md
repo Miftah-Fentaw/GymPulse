@@ -2,6 +2,8 @@
 
 Self-hostable gym management. The Go server is a plain process. PostgreSQL 16 runs natively on the host. There is no Docker in this repository.
 
+**License:** [BSD 2-Clause](LICENSE) · **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## Requirements
 
 - Go 1.26+
@@ -134,6 +136,14 @@ cd landing && pnpm install && pnpm run dev
 ## OpenSpec
 
 Product work is tracked in `openspec/`. Completed changes are stored under `openspec/changes/archive/`; `openspec/specs/` contains the current product specifications. There are currently no active changes.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, OpenSpec workflow, PR expectations, and architecture rules.
+
+## License
+
+GymPulse is licensed under the [BSD 2-Clause License](LICENSE). Copyright (c) 2026, Miftah Fentaw.
 
 ## Production
 
