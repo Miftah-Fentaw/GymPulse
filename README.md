@@ -23,6 +23,7 @@
   <a href="#-what-you-get">Features</a> ·
   <a href="#-quick-start">Quick start</a> ·
   <a href="#-apps">Apps</a> ·
+  <a href="docs/README.md">Docs</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="LICENSE">License</a>
 </p>
@@ -249,6 +250,10 @@ Frontends use `@gympulse/api-client` only. The Go process never shares the datab
 6. Backups — [`docs/backup.md`](docs/backup.md)
 
 ---
+
+## Documentation
+
+Deep-dive guides: **[`docs/`](docs/README.md)** — [tech stack](docs/tech-stack.md), [architecture](docs/architecture.md), [how-to](docs/howto.md), [OpenSpec](docs/openspec.md).
 
 ## Contributing
 
