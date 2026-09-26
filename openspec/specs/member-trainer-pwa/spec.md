@@ -62,3 +62,48 @@ All user-visible strings SHALL come from i18n catalogs (react-i18next). English 
 #### Scenario: English default
 - **WHEN** a member opens the PWA with no locale override
 - **THEN** labels render from the English catalog
+
+### Requirement: Member billing and screenshot pay in the PWA
+The PWA SHALL let a signed-in member view their invoices and submit a screenshot payment (provider choice such as Telebirr or CBE, amount, optional reference, evidence image) against an unpaid invoice using the billing APIs. The UI SHALL show pending/approved/rejected status for those payments.
+
+#### Scenario: Member pays with screenshot
+- **WHEN** a member selects an unpaid invoice, chooses Telebirr, uploads a screenshot, and submits
+- **THEN** a pending payment is created and the PWA shows it as awaiting staff verification
+
+### Requirement: Member check-in entry point
+The PWA SHALL expose check-in in primary navigation for member profiles and route to the check-in QR screen.
+
+#### Scenario: Nav to check-in
+- **WHEN** a member opens the main app shell
+- **THEN** a check-in navigation target is available and opens the QR screen
+
+### Requirement: Email and password only on auth screens
+PWA sign-in and sign-up SHALL use email and password only. The UI MUST NOT offer Google, Apple, or other social identity providers. Password fields SHALL include a show/hide control.
+
+#### Scenario: Sign-in without social buttons
+- **WHEN** a user opens sign-in or sign-up
+- **THEN** only email/password controls are offered and each password field has a visibility toggle
+
+### Requirement: Mobile bottom navigation shell
+On phone-width viewports the authenticated PWA SHALL present a persistent bottom navigation bar with Home, Explore, Schedule, and Profile destinations. The active destination MUST be visually indicated using the brand primary color.
+
+#### Scenario: Phone bottom nav
+- **WHEN** a signed-in member uses the PWA at a phone-width viewport
+- **THEN** Home, Explore, Schedule, and Profile are reachable from a bottom navigation bar
+- **AND** the current tab uses the brand primary accent
+
+### Requirement: Tablet and desktop sidebar shell
+On tablet and desktop viewports the PWA SHALL present the same four destinations in a persistent left sidebar instead of a bottom bar. Content MUST reflow to multi-column layouts where the design uses lists of cards.
+
+#### Scenario: Desktop sidebar
+- **WHEN** a signed-in member uses the PWA at a tablet or desktop viewport
+- **THEN** navigation appears in a left sidebar with the same four destinations
+- **AND** the bottom navigation bar is not shown
+
+### Requirement: Design-kit member surfaces with GymPulse brand
+The PWA SHALL follow the light-version layout structure from the approved PWA design kit (onboarding, home, explore, schedule, profile, workout/trainer detail). Primary actions, active states, and key accents MUST use GymPulse landing brand red (`#e31c23` family), not the kit’s green.
+
+#### Scenario: Brand primary on CTAs
+- **WHEN** a visitor views Sign In or a primary Reserve/Confirm button
+- **THEN** the primary filled button uses GymPulse brand red
+- **AND** the overall chrome remains a light background as in the design kit
