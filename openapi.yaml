@@ -6205,27 +6205,24 @@ components:
     CheckinRequest:
       type: object
       additionalProperties: false
+      required: [branch_id]
+      properties:
+        token:
+          type: string
+        member_code:
+          type: string
+        branch_id:
+          type: string
+          format: uuid
+        method:
+          type: string
+          enum: [code_fallback]
+        photo_confirmed:
+          type: boolean
+          enum: [true]
       oneOf:
-        - required: [token, branch_id]
-          properties:
-            token:
-              type: string
-            branch_id:
-              type: string
-              format: uuid
-        - required: [member_code, branch_id, method, photo_confirmed]
-          properties:
-            member_code:
-              type: string
-            branch_id:
-              type: string
-              format: uuid
-            method:
-              type: string
-              enum: [code_fallback]
-            photo_confirmed:
-              type: boolean
-              enum: [true]
+        - required: [token]
+        - required: [member_code, method, photo_confirmed]
 
     StaffCheckinRequest:
       type: object
