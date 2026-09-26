@@ -2,9 +2,215 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>landing</title>
+
+    <!-- Primary -->
+    <title>GymPulse — Train Hard. Own Your Gym Floor.</title>
+    <meta
+      name="title"
+      content="GymPulse — Train Hard. Own Your Gym Floor."
+    />
+    <meta
+      name="description"
+      content="GymPulse is a modern gym for strength, cardio, and coaching. View class schedules, membership plans, and start your free trial at our downtown floor."
+    />
+    <meta
+      name="keywords"
+      content="gym, fitness, personal training, bodybuilding, cardio, yoga, membership, class schedule, GymPulse"
+    />
+    <meta name="author" content="GymPulse" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="theme-color" content="#e31c23" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="format-detection" content="telephone=yes" />
+    <meta name="application-name" content="GymPulse" />
+    <meta name="rating" content="general" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <!-- Canonical (set VITE_SITE_URL at build time, e.g. https://gympulse.example.com) -->
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="mask-icon" href="/logo.png" color="#e31c23" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="GymPulse" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:title" content="GymPulse — Train Hard. Own Your Gym Floor." />
+    <meta
+      property="og:description"
+      content="Strength, cardio, coaching, and memberships in one modern gym. Check the schedule and start your free trial."
+    />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.jpg" />
+    <meta property="og:image:secure_url" content="%VITE_SITE_URL%/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1600" />
+    <meta property="og:image:height" content="1067" />
+    <meta property="og:image:alt" content="Athletes training on the GymPulse gym floor" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="GymPulse — Train Hard. Own Your Gym Floor." />
+    <meta
+      name="twitter:description"
+      content="Strength, cardio, coaching, and memberships in one modern gym. Check the schedule and start your free trial."
+    />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.jpg" />
+    <meta name="twitter:image:alt" content="Athletes training on the GymPulse gym floor" />
+
+    <!-- Local / geo hints -->
+    <meta name="geo.region" content="US" />
+    <meta name="geo.placename" content="Downtown" />
+    <meta name="ICBM" content="40.7128, -74.0060" />
+
+    <!-- Performance for LCP-related assets -->
+    <link rel="preload" as="image" href="/og-image.jpg" type="image/jpeg" />
+    <link rel="preload" as="image" href="/image1.png" type="image/png" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Structured data: WebSite + SportsActivityLocation -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "%VITE_SITE_URL%/#website",
+            "url": "%VITE_SITE_URL%/",
+            "name": "GymPulse",
+            "description": "Modern gym for strength, cardio, coaching, and memberships.",
+            "publisher": { "@id": "%VITE_SITE_URL%/#organization" },
+            "inLanguage": "en-US"
+          },
+          {
+            "@type": "Organization",
+            "@id": "%VITE_SITE_URL%/#organization",
+            "name": "GymPulse",
+            "url": "%VITE_SITE_URL%/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "%VITE_SITE_URL%/logo.png",
+              "width": 500,
+              "height": 500
+            },
+            "image": "%VITE_SITE_URL%/og-image.jpg",
+            "email": "hello@gympulse.local",
+            "telephone": "+1-555-010-2090",
+            "sameAs": []
+          },
+          {
+            "@type": "SportsActivityLocation",
+            "@id": "%VITE_SITE_URL%/#gym",
+            "name": "GymPulse",
+            "url": "%VITE_SITE_URL%/",
+            "image": [
+              "%VITE_SITE_URL%/og-image.jpg",
+              "%VITE_SITE_URL%/image1.png",
+              "%VITE_SITE_URL%/image2.png"
+            ],
+            "description": "GymPulse offers strength training, cardio, yoga, group classes, and personal coaching with clear membership plans.",
+            "telephone": "+1-555-010-2090",
+            "email": "hello@gympulse.local",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "120 Fitness Ave, Suite 2B",
+              "addressLocality": "Downtown",
+              "addressRegion": "NY",
+              "postalCode": "10001",
+              "addressCountry": "US"
+            },
+            "geo": {
+              "@type": "GeoCoordinates",
+              "latitude": 40.7128,
+              "longitude": -74.006
+            },
+            "openingHoursSpecification": [
+              {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+                "opens": "06:00",
+                "closes": "22:00"
+              },
+              {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": "Saturday",
+                "opens": "07:00",
+                "closes": "21:00"
+              },
+              {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": "Sunday",
+                "opens": "08:00",
+                "closes": "18:00"
+              }
+            ],
+            "priceRange": "$$",
+            "currenciesAccepted": "USD",
+            "paymentAccepted": "Cash, Credit Card",
+            "amenityFeature": [
+              { "@type": "LocationFeatureSpecification", "name": "Group classes", "value": true },
+              { "@type": "LocationFeatureSpecification", "name": "Personal training", "value": true },
+              { "@type": "LocationFeatureSpecification", "name": "Locker rooms", "value": true }
+            ],
+            "hasOfferCatalog": {
+              "@type": "OfferCatalog",
+              "name": "Membership plans",
+              "itemListElement": [
+                {
+                  "@type": "Offer",
+                  "name": "Basic",
+                  "price": "150.00",
+                  "priceCurrency": "USD",
+                  "description": "Gym floor access, locker room, one group class per week"
+                },
+                {
+                  "@type": "Offer",
+                  "name": "Standard",
+                  "price": "200.00",
+                  "priceCurrency": "USD",
+                  "description": "Unlimited group classes, sauna access, monthly coach check-in"
+                },
+                {
+                  "@type": "Offer",
+                  "name": "Premium",
+                  "price": "250.00",
+                  "priceCurrency": "USD",
+                  "description": "Personal training sessions, nutrition plan, priority booking"
+                }
+              ]
+            }
+          },
+          {
+            "@type": "WebPage",
+            "@id": "%VITE_SITE_URL%/#webpage",
+            "url": "%VITE_SITE_URL%/",
+            "name": "GymPulse — Train Hard. Own Your Gym Floor.",
+            "isPartOf": { "@id": "%VITE_SITE_URL%/#website" },
+            "about": { "@id": "%VITE_SITE_URL%/#gym" },
+            "description": "Public landing page for GymPulse gym: classes, schedule, trainers, pricing, and contact.",
+            "inLanguage": "en-US",
+            "primaryImageOfPage": {
+              "@type": "ImageObject",
+              "url": "%VITE_SITE_URL%/og-image.jpg"
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>
