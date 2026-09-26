@@ -2,6 +2,7 @@
   "name": "@gympulse/api-client",
   "version": "0.0.1",
   "private": true,
+  "license": "BSD-2-Clause",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
