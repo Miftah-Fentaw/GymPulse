@@ -75,7 +75,8 @@ cp .env.example .env
 make generate
 make db-create
 make migrate-up
-make dev          # go run ./cmd/gympulse with .env loaded
+make seed          # demo users — see users.md
+make dev           # go run ./cmd/gympulse with .env loaded
 ```
 
 For a fresh database, the complete backend bootstrap is:
@@ -86,11 +87,13 @@ cp .env.example .env
 make generate
 make db-create
 make migrate-up
+make seed
 make build
 make lint
 make test
 ```
 
+Demo accounts (password `GymPulse1!`) are listed in [`users.md`](users.md). Re-run with `make seed`.
 `GET /health` is liveness (no DB). `GET /ready` pings Postgres. If readiness fails, the process logs the underlying error at warn; the HTTP body stays `{ "status": "not_ready" }`.
 
 Other targets: `make run` (built `server/bin/gympulse`), `make lint`, `make test`, `make build`, `make migrate-down`, `make migrate-status`.
