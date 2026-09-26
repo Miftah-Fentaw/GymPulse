@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@gympulse/api-client": "workspace:*",
+    "@gympulse/api-client": "file:../packages/api-client",
     "@tanstack/react-query": "^5.74.4",
     "@tanstack/react-router": "^1.116.0",
     "clsx": "^2.1.1",

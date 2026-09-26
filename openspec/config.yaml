@@ -26,8 +26,9 @@ context: |
     openspec/            Specs, changes, and this project context
 
   Go module path: gympulse-server (cmd/gympulse).
-  JS package manager: pnpm workspace (admin, app, landing,
-  packages/api-client) — introduced in admin-app-core, not bootstrap-server.
+  JS packages are independent (not a monorepo workspace): install
+  inside each of admin/, app/, landing/, and packages/api-client/.
+  admin depends on packages/api-client via a local file: link.
 
   ## How to run everything locally
 

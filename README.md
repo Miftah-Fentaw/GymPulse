@@ -109,15 +109,16 @@ If `TEST_DATABASE_URL` is unset, DB tests fail with a message explaining how to 
 
 ## Frontend projects
 
-Admin is React + Vite (pnpm workspace). Member app and landing still use their own stacks.
+Each frontend is a separate package with its own `node_modules` (no root JS workspace).
 
 ```bash
 # API (terminal 1)
 make generate && make db-create && make migrate-up && make dev
 
 # Admin (terminal 2)
-pnpm install
-make admin-dev   # http://localhost:5173 — proxies /v1 → :8080
+cd packages/api-client && pnpm install && pnpm run generate
+cd ../../admin && pnpm install && pnpm run dev
+# or: make admin-dev
 ```
 
 ```bash
@@ -125,7 +126,7 @@ cd app && pnpm install && pnpm run dev
 cd landing && pnpm install && pnpm run dev
 ```
 
-`make admin-build` / `pnpm run build:admin` for a production admin build. The Go server remains the only database client.
+`make admin-build` for a production admin build. The Go server remains the only database client.
 
 ## OpenSpec
 

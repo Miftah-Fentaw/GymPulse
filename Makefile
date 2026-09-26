@@ -4,7 +4,7 @@ with-env = bash -c 'set -a && [ -f "$(CURDIR)/.env" ] && . "$(CURDIR)/.env"; set
 
 generate:
 	cd server && go tool oapi-codegen -config oapi-codegen.yaml ../openapi.yaml
-	pnpm --filter @gympulse/api-client generate
+	cd packages/api-client && pnpm install && pnpm run generate
 
 lint:
 	cd server && go tool golangci-lint run ./...
@@ -19,10 +19,10 @@ dev:
 	$(call with-env,cd "$(CURDIR)/server" && go run ./cmd/gympulse)
 
 admin-dev:
-	pnpm --filter admin dev
+	cd admin && pnpm run dev
 
 admin-build:
-	pnpm --filter admin build
+	cd admin && pnpm run build
 
 run: build
 	$(call with-env,"$(CURDIR)/server/bin/gympulse")

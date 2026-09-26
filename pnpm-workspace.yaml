@@ -1,5 +1,0 @@
-packages:
-  - "admin"
-  - "app"
-  - "landing"
-  - "packages/*"
