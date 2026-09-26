@@ -179,8 +179,21 @@ func (a *apiImpl) PostAuthLogin(ctx context.Context, req api.PostAuthLoginReques
 	if err != nil {
 		return nil, err
 	}
-	cookie := (&http.Cookie{Name: "gympulse_refresh", Value: refresh, Path: "/v1/auth", HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: 2592000}).String()
-	return api.PostAuthLogin200JSONResponse{Body: api.LoginResponse{AccessToken: access, ExpiresIn: ptr(900), User: s}, Headers: api.PostAuthLogin200ResponseHeaders{SetCookie: &cookie}}, nil
+	cookie := a.refreshCookie(refresh, 2592000).String()
+	return api.PostAuthLogin200JSONResponse{Body: api.LoginResponse{AccessToken: access, ExpiresIn: ptr(900), RefreshToken: &refresh, User: s}, Headers: api.PostAuthLogin200ResponseHeaders{SetCookie: &cookie}}, nil
+}
+
+func (a *apiImpl) refreshCookie(value string, maxAge int) *http.Cookie {
+	secure := os.Getenv("AUTH_COOKIE_SECURE") != "false"
+	return &http.Cookie{
+		Name:     "gympulse_refresh",
+		Value:    value,
+		Path:     "/v1/auth",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   maxAge,
+	}
 }
 func ptr[T any](v T) *T { return &v }
 
@@ -223,8 +236,8 @@ func (a *apiImpl) PostAuthRefresh(ctx context.Context, req api.PostAuthRefreshRe
 	if err != nil {
 		return nil, err
 	}
-	cookie := (&http.Cookie{Name: "gympulse_refresh", Value: newToken, Path: "/v1/auth", HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: 2592000}).String()
-	return api.PostAuthRefresh200JSONResponse{Body: api.LoginResponse{AccessToken: access, ExpiresIn: ptr(900), User: s}, Headers: api.PostAuthRefresh200ResponseHeaders{SetCookie: &cookie}}, nil
+	cookie := a.refreshCookie(newToken, 2592000).String()
+	return api.PostAuthRefresh200JSONResponse{Body: api.LoginResponse{AccessToken: access, ExpiresIn: ptr(900), RefreshToken: &newToken, User: s}, Headers: api.PostAuthRefresh200ResponseHeaders{SetCookie: &cookie}}, nil
 }
 func httpRequestCookie(ctx context.Context) (string, error) {
 	r, ok := ctx.Value(requestKey).(*http.Request)
@@ -272,7 +285,7 @@ func (a *apiImpl) PostAuthLogout(ctx context.Context, _ api.PostAuthLogoutReques
 	if raw, err := httpRequestCookie(ctx); err == nil {
 		_, _ = a.pool.Exec(ctx, `UPDATE refresh_tokens SET revoked_at=now() WHERE token_hash=$1`, tokenHash(raw))
 	}
-	clear := (&http.Cookie{Name: "gympulse_refresh", Value: "", Path: "/v1/auth", HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: -1}).String()
+	clear := a.refreshCookie("", -1).String()
 	return api.PostAuthLogout204Response{Headers: api.PostAuthLogout204ResponseHeaders{SetCookie: &clear}}, nil
 }
 
