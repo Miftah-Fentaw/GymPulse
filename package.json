@@ -1,0 +1,10 @@
+{
+  "name": "gympulse",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "generate:api": "pnpm --filter @gympulse/api-client generate",
+    "dev:admin": "pnpm --filter admin dev",
+    "build:admin": "pnpm --filter admin build"
+  }
+}

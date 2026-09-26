@@ -5623,6 +5623,9 @@ components:
         expires_in:
           type: integer
           description: seconds until access token expiry
+        refresh_token:
+          type: string
+          description: Opaque refresh token (body fallback when cookies are unavailable)
         user:
           $ref: '#/components/schemas/UserSummary'
 

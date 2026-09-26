@@ -109,15 +109,23 @@ If `TEST_DATABASE_URL` is unset, DB tests fail with a message explaining how to 
 
 ## Frontend projects
 
-The repository contains three independent Vite applications:
+Admin is React + Vite (pnpm workspace). Member app and landing still use their own stacks.
 
 ```bash
-cd admin && npm install && npm run dev
-cd app && npm install && npm run dev
-cd landing && npm install && npm run dev
+# API (terminal 1)
+make generate && make db-create && make migrate-up && make dev
+
+# Admin (terminal 2)
+pnpm install
+make admin-dev   # http://localhost:5173 — proxies /v1 → :8080
 ```
 
-Use `npm run build` in each project for a production build and `npm run preview` to preview that build. The frontend projects currently use Vue 3 + TypeScript + Vite. The Go server remains the only database client.
+```bash
+cd app && pnpm install && pnpm run dev
+cd landing && pnpm install && pnpm run dev
+```
+
+`make admin-build` / `pnpm run build:admin` for a production admin build. The Go server remains the only database client.
 
 ## OpenSpec
 

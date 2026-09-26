@@ -1,9 +1,10 @@
-.PHONY: dev run test lint generate build migrate-up migrate-down migrate-status db-create
+.PHONY: dev run test lint generate build migrate-up migrate-down migrate-status db-create admin-dev admin-build
 
 with-env = bash -c 'set -a && [ -f "$(CURDIR)/.env" ] && . "$(CURDIR)/.env"; set +a && $(1)'
 
 generate:
 	cd server && go tool oapi-codegen -config oapi-codegen.yaml ../openapi.yaml
+	pnpm --filter @gympulse/api-client generate
 
 lint:
 	cd server && go tool golangci-lint run ./...
@@ -16,6 +17,12 @@ build:
 
 dev:
 	$(call with-env,cd "$(CURDIR)/server" && go run ./cmd/gympulse)
+
+admin-dev:
+	pnpm --filter admin dev
+
+admin-build:
+	pnpm --filter admin build
 
 run: build
 	$(call with-env,"$(CURDIR)/server/bin/gympulse")
