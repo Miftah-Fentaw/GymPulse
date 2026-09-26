@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+Disallow: /src/
+Disallow: /node_modules/
+
+# Absolute sitemap URL is injected at build time — see vite.config.ts

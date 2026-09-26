@@ -1,0 +1,20 @@
+{
+  "name": "GymPulse",
+  "short_name": "GymPulse",
+  "description": "Modern gym for strength, cardio, coaching, and memberships.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0b0b",
+  "theme_color": "#e31c23",
+  "lang": "en-US",
+  "categories": ["fitness", "health", "sports"],
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "500x500",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
