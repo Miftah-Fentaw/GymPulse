@@ -2283,6 +2283,46 @@ paths:
           $ref: '#/components/responses/Error'
         "404":
           $ref: '#/components/responses/Error'
+  /v1/me/invoices:
+    get:
+      operationId: listMyInvoices
+      tags: [billing]
+      summary: List current member invoices
+      description: |
+        Phase: mvp. Change: member-payments-attendance. Requires: owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: member-payments-attendance
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "401":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+  /v1/me/payments:
+    get:
+      operationId: listMyPayments
+      tags: [billing]
+      summary: List current member payments
+      description: |
+        Phase: mvp. Change: member-payments-attendance. Requires: owning member.
+      x-gympulse-phase: mvp
+      x-gympulse-change: member-payments-attendance
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "401":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
   /v1/checkins:
     post:
       operationId: postCheckin
@@ -2671,12 +2711,14 @@ paths:
     post:
       operationId: createInvoicePayment
       tags: [billing]
-      summary: Record manual payment
+      summary: Record manual or screenshot payment
       description: |
-        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist.
+        Phase: mvp. Change: member-payments-attendance.
+        Requires: owner, manager, receptionist, or owning member (screenshot evidence).
+        When evidence_file_id is set, payment is pending until staff approve/reject.
       x-gympulse-phase: mvp
-      x-gympulse-change: billing-payments
-      x-gympulse-requires: owner, manager, receptionist
+      x-gympulse-change: member-payments-attendance
+      x-gympulse-requires: owner, manager, receptionist, owning member
       parameters:
         - in: path
           name: invoiceId
@@ -2748,9 +2790,10 @@ paths:
       tags: [billing]
       summary: List payments
       description: |
-        Phase: mvp. Change: billing-payments. Requires: owner, manager, receptionist.
+        Phase: mvp. Change: member-payments-attendance. Requires: owner, manager, receptionist.
+        Filter status=pending for the screenshot review queue.
       x-gympulse-phase: mvp
-      x-gympulse-change: billing-payments
+      x-gympulse-change: member-payments-attendance
       x-gympulse-requires: owner, manager, receptionist
       parameters:
         - $ref: '#/components/parameters/Cursor'
@@ -2766,6 +2809,12 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/PaymentMethod'
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [pending, approved, rejected, refunded]
         - $ref: '#/components/parameters/From'
         - $ref: '#/components/parameters/To'
       responses:
@@ -2780,6 +2829,77 @@ paths:
         "401":
           $ref: '#/components/responses/Error'
         "403":
+          $ref: '#/components/responses/Error'
+    post:
+      operationId: createPayment
+      tags: [billing]
+      summary: Create payment (staff or member with evidence)
+      description: |
+        Phase: mvp. Change: member-payments-attendance.
+        Body must include invoice_id and member_id. evidence_file_id forces pending.
+      x-gympulse-phase: mvp
+      x-gympulse-change: member-payments-attendance
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreateRequest'
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+  /v1/payments/{paymentId}/review:
+    post:
+      operationId: reviewPayment
+      tags: [billing]
+      summary: Approve or reject a pending payment
+      description: |
+        Phase: mvp. Change: member-payments-attendance. Requires: owner, manager, receptionist.
+        Approving updates invoice paid_minor.
+      x-gympulse-phase: mvp
+      x-gympulse-change: member-payments-attendance
+      x-gympulse-requires: owner, manager, receptionist
+      parameters:
+        - in: path
+          name: paymentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentReviewRequest'
+      responses:
+        "200":
+          description: Reviewed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonObject'
+        "400":
+          $ref: '#/components/responses/Error'
+        "401":
+          $ref: '#/components/responses/Error'
+        "403":
+          $ref: '#/components/responses/Error'
+        "404":
+          $ref: '#/components/responses/Error'
+        "409":
           $ref: '#/components/responses/Error'
   /v1/members/{memberId}/payments:
     get:
@@ -5368,11 +5488,12 @@ components:
 
     PaymentMethod:
       type: string
-      enum: [cash, bank_transfer, mobile_money]
+      enum: [cash, bank, bank_transfer, mobile_money]
+      description: bank_transfer is accepted as an alias of bank
 
     PaymentStatus:
       type: string
-      enum: [completed, partially_refunded, refunded]
+      enum: [pending, approved, rejected, refunded, completed, partially_refunded]
 
     DurationUnit:
       type: string
@@ -6162,7 +6283,7 @@ components:
           $ref: '#/components/schemas/PaymentMethod'
         provider:
           type: string
-          description: Free text, e.g. mobile money operator or bank name
+          description: Free text operator label, e.g. telebirr, cbe, other
         reference:
           type: string
         paid_at:
@@ -6170,6 +6291,30 @@ components:
           format: date-time
         note:
           type: string
+        evidence_file_id:
+          type: string
+          format: uuid
+          description: Screenshot or receipt image from POST /v1/files; when set, payment is pending until staff review
+        member_id:
+          type: string
+          format: uuid
+          description: Required when creating via POST /v1/payments (not invoice subpath)
+        invoice_id:
+          type: string
+          format: uuid
+          description: Required when creating via POST /v1/payments
+
+    PaymentReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+        reason:
+          type: string
+          description: Required when rejecting
 
     RefundRequest:
       type: object
